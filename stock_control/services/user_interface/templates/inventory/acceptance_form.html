@@ -1,0 +1,46 @@
+{% load static %}
+{% load feature_flags %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Acceptance Test – {{ item.product.code }} ({{ item.lot_number }})</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+  <style>
+    .badge { padding: 2px 6px; border-radius: 10px; font-size: 12px }
+    .badge-grey { background:#e5e7eb; color:#111827 }
+    .badge-red { background:#fee2e2; color:#991b1b }
+    .badge-green { background:#dcfce7; color:#065f46 }
+    form label { display:block; margin:8px 0 4px }
+    input[type="text"] { width: 280px; }
+  </style>
+</head>
+<body>
+  <h2>Record Acceptance Test</h2>
+  <p><strong>Product:</strong> {{ item.product.code }} — {{ item.product.name }}<br>
+     <strong>Lot #:</strong> {{ item.lot_number }}<br>
+     {% if item.received_at %}<strong>Received:</strong> {{ item.received_at|date:"Y-m-d H:i" }}{% endif %}
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+    <label><input type="checkbox" name="tested"> Tested</label>
+    <label><input type="checkbox" name="passed"> Passed</label>
+
+    <label>Signed off by</label>
+    <input type="text" name="signed_off_by" placeholder="Name">
+
+    <label>Signed off at (YYYY-MM-DD HH:MM)</label>
+    <input type="text" name="signed_off_at" placeholder="2025-09-02 14:30">
+
+    <label>Test reference</label>
+    <input type="text" name="test_reference" placeholder="e.g., LAB-QA-2025-0912">
+
+    <div style="margin-top:12px">
+      <button type="submit">Save</button>
+      <a href="{% url 'data_collection_3:product-lots-instances' code=product_code %}">Cancel</a>
+
+    </div>
+  </form>
+</body>
+</html>

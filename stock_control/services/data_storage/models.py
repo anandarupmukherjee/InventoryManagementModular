@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from django.utils import timezone
 from django.utils.timezone import now
-
+from .models_acceptance import LotAcceptanceTest
 
 class Supplier(models.Model):
     name = models.CharField(max_length=100)

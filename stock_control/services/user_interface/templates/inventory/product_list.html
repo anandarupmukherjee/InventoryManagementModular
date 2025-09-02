@@ -36,31 +36,58 @@
                             <th>Product Name</th>
                             <th>Product Code</th>
                             <th>Current Stock</th>
-                            <th>Full Items in Stock</th> <!-- ✅ NEW COLUMN -->
-                            <th>Remaining Parts</th>     <!-- ✅ NEW COLUMN -->
+                            <th>Full Items in Stock</th>
+                            <th>Remaining Parts</th>
                             <th>Stock Threshold</th>
                             <th>Order Lead Times</th>
                             <th>Supplier</th>
+
+                            <!-- ✅ NEW: Lot Overview -->
+                            <th>Lots</th>
+                            <th>Earliest Expiry</th>
+                            <th>Last Received</th>
+                            <th>Actions</th>
                         </tr>
-                    </thead>
-                    <tbody>
+                        </thead>
+                        <tbody>
                         {% for product in products %}
                             <tr>
-                                <td>{{ product.name }}</td>
-                                <td>{{ product.product_code }}</td>
-                                <td>{{ product.get_full_items_in_stock }}</td> <!-- ✅ Replace current_stock -->
-                                <td>{{ product.full_items }}</td>
-                                <td>{{ product.remaining_parts }}</td>
-                                <td>{{ product.threshold }}</td>
-                                <td>{{ product.lead_time }}</td>
-                                <td>{{ product.supplier }}</td>
+                            <td>{{ product.name }}</td>
+                            <td>{{ product.product_code }}</td>
+
+                            <td>{{ product.get_full_items_in_stock }}</td>
+                            <td>{{ product.full_items }}</td>
+                            <td>{{ product.remaining_parts }}</td>
+                            <td>{{ product.threshold }}</td>
+                            <td>{{ product.lead_time }}</td>
+                            <td>{{ product.supplier }}</td>
+
+                            <!-- ✅ NEW: Lot Overview (shows counts; safe defaults if backend not wired yet) -->
+                            <td>
+                                <span title="Total lot instances">{{ product.lot_instances|default:"0" }}</span>
+                                · <span title="Passed">{{ product.lot_passed|default:"0" }}</span>✔
+                                · <span title="Failed">{{ product.lot_failed|default:"0" }}</span>✖
+                                · <span title="Not tested">{{ product.lot_untested|default:"0" }}</span>…
+                            </td>
+
+                            <!-- ✅ NEW: Dates (safe) -->
+                            <td>{% if product.earliest_expiry %}{{ product.earliest_expiry|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                            <td>{% if product.last_received %}{{ product.last_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+
+                            <!-- ✅ NEW: Quick links to your new namespaced routes -->
+                            <td>
+                                <a href="{% url 'data_collection_3:product-lots-instances' code=product.product_code %}" target="_blank">View lots</a> |
+                                <a href="{% url 'data_collection_3:product-lots-rollup' code=product.product_code %}" target="_blank">Roll-up</a> |
+                                <a href="{% url 'data_collection_3:create-lot-instance' code=product.product_code %}" target="_blank">Add lot</a>
+                            </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="8">No products found.</td>
+                            <td colspan="12">No products found.</td>
                             </tr>
                         {% endfor %}
-                    </tbody>
+                        </tbody>
+
                     
                 </table>
             </div>

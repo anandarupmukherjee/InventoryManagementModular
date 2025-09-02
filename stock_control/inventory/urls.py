@@ -1,6 +1,6 @@
 # urls.py
 
-from django.urls import path
+from django.urls import path, include
 from . import views
 from django.contrib.auth import views as auth_views
 
@@ -11,6 +11,7 @@ urlpatterns = [
     # Dashboard
     # path('dashboard/', views.dashboard, name='dashboard'),
     path('dashboard/', views.inventory_dashboard, name='dashboard'),
+    # path("", include(("services.data_collection_3.urls", "data_collection_3"), namespace="data_collection_3")),
     
     # Stock Admin: no product_id => list/add, with product_id => edit
     # path('stock_admin/', views.stock_admin, name='stock_admin'),

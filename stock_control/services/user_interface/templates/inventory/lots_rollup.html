@@ -1,0 +1,44 @@
+{% load static %}
+{% load feature_flags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lot Roll-up – {{ product_code }} ({{ product.name }})</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+
+</head>
+<body>
+  <h2>Lot Roll-up for {{ product_code }} — {{ product.name }}</h2>
+  <p>
+    <a href="{% url 'data_collection_3:product-lots-instances' code=product_code %}">Back to Instances</a>
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Lot Number</th>
+        <th># Instances</th>
+        <th>Total Units</th>
+        <th>First Received</th>
+        <th>Last Received</th>
+        <th>Earliest Expiry</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.lot_number }}</td>
+          <td>{{ row.instances }}</td>
+          <td>{{ row.total_units }}</td>
+          <td>{% if row.first_received %}{{ row.first_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+          <td>{% if row.last_received %}{{ row.last_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+          <td>{% if row.earliest_expiry %}{{ row.earliest_expiry|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">No lot data available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

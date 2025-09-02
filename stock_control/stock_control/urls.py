@@ -9,6 +9,7 @@ urlpatterns = [
     path("", include("inventory.urls")),
     path("accounts/", include("django.contrib.auth.urls")),
     path('data2/', include('services.data_collection_2.urls', namespace='data_collection_2')),
+    path("", include("services.data_collection_3.urls", namespace="data_collection_3")),
 ]
 
 if "enable_analysis" in enabled:

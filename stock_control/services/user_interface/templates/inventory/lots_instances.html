@@ -1,0 +1,75 @@
+{% load static %}
+{% load feature_flags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lot Instances – {{ product_code }} ({{ product.name }})</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+
+</head>
+<body>
+  <h2>Lot Instances for {{ product_code }} — {{ product.name }}</h2>
+
+  <p>
+    <a href="{% url 'data_collection_3:product-lots-rollup' code=product_code %}">View Roll-up</a> |
+    <a href="{% url 'data_collection_3:create-lot-instance' code=product_code %}">Add Lot Instance</a>
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Lot Number</th>
+        <th>Received</th>
+        <th>Expiry</th>
+        <th>Stock</th>
+        <th>Acceptance</th>
+        <th>Test Ref</th>
+        <th>Signed Off</th>
+        <th>QA</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr {% if item.expiry_date and item.expiry_date <= today %}class="expired"{% endif %}>
+          <td>{{ item.lot_number }}</td>
+          <td>{% if item.received_at %}{{ item.received_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+          <td>{% if item.expiry_date %}{{ item.expiry_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+          <td>{{ item.stock_units }}</td>
+
+          {% with lat=item.acceptance_tests.last %}
+            <td>
+              {% if lat %}
+                {% if lat.passed %}
+                  <span class="badge badge-green">Passed</span>
+                {% elif lat.tested %}
+                  <span class="badge badge-red">Failed</span>
+                {% else %}
+                  <span class="badge badge-grey">Not tested</span>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-grey">Not tested</span>
+              {% endif %}
+            </td>
+            <td>{% if lat and lat.test_reference %}{{ lat.test_reference }}{% else %}—{% endif %}</td>
+            <td>
+              {% if lat and lat.signed_off_by %}
+                {{ lat.signed_off_by }}
+                {% if lat.signed_off_at %}<br><small>{{ lat.signed_off_at|date:"Y-m-d H:i" }}</small>{% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          {% endwith %}
+
+          <td>
+            <a href="{% url 'data_collection_3:create-acceptance-test' item_id=item.id %}">Add/Update</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8">No lots recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

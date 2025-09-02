@@ -13,6 +13,14 @@
   <script src="{% static 'inventory/table_search.js' %}"></script>
 
   <style>
+  .badge { padding: 2px 6px; border-radius: 10px; font-size: 12px }
+  .badge-grey { background:#e5e7eb; color:#111827 }
+  .badge-red { background:#fee2e2; color:#991b1b }
+  .badge-green { background:#dcfce7; color:#065f46 }
+</style>
+
+
+  <style>
     .expired-row {
       background-color: #ffd6d6;
       animation: blinkFade 1s ease-in-out infinite;
@@ -43,41 +51,12 @@
   {% include "includes/navbar.html" %}
 
   <div class="dashboard-container">
+    {% now "Y-m-d" as today_str %}
+
 
     <!-- ✅ Flex wrapper for horizontal layout -->
     <div class="table-card-wrapper">
 
-      <!-- Products Table -->
-      <!-- <div class="card table-card wide-card">
-        <h2>Products Overview</h2>
-        <input type="text" id="searchAdmin" class="search-bar" placeholder="Search by name or code">
-        <div class="table-wrapper">
-          <table id="adminTable">
-            <thead>
-              <tr>
-                <th>Product Code</th>
-                <th>Name</th>
-                <th>Supplier</th>
-                <th>Threshold</th>
-                <th>Lead Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in products %}
-                <tr>
-                  <td>{{ p.product_code }}</td>
-                  <td>{{ p.name }}</td>
-                  <td>{{ p.supplier }}</td>
-                  <td>{{ p.threshold }}</td>
-                  <td>{{ p.lead_time }}</td>
-                </tr>
-              {% empty %}
-                <tr><td colspan="5">No products available.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div> -->
 
       <!-- Product + Lot Form -->
       <div class="card form-card narrow-card">
@@ -119,44 +98,88 @@
                 <th>Action</th>
                 <th>Product</th>
                 <th>Lot Number</th>
+                <th>Received</th> 
                 <th>Expiry</th>
                 <th>Stock</th>
                 <th>Units/Item</th>
                 <th>Partial Units</th>
                 <th>Type</th>
+                <th>Acceptance</th>    
+                <th>Test Ref</th>          
+                <th>Signed Off</th>        
+                <th>QA</th> 
               </tr>
             </thead>
             <tbody>
               {% for p in products %}
                 {% for item in p.items.all %}
-                  {% with today=now.date %}
-                    {% if item.expiry_date and item.expiry_date <= today %}
+                  {% with item_date=item.expiry_date|stringformat:"Y-m-d" %}
+                    {% if item.expiry_date and item_date <= today_str %}
                       <tr class="expired-row">
                     {% else %}
                       <tr>
                     {% endif %}
                   {% endwith %}
-                  {% if item.expiry_date and item.expiry_date <= now.date %}
+
+                    {# Delete button for expired lots (unchanged) #}
+                    {% with item_date=item.expiry_date|stringformat:"Y-m-d" %}
+                      {% if item.expiry_date and item_date <= today_str %}
+                        <td>
+                          <form method="POST" action="{% url 'data_collection_1:delete_lot' item.id %}" onsubmit="return confirm('Are you sure you want to discard this expired lot?');">
+                            {% csrf_token %}
+                            <button type="submit" class="delete-button">🗑️ Delete Lot</button>
+                          </form>
+                        </td>
+                      {% else %}
+                        <td></td>
+                      {% endif %}
+                    {% endwith %}
+
+                    <td>{{ p.name }}</td>
+                    <td>{{ item.lot_number }}</td>
                     <td>
-                      <form method="POST" action="{% url 'data_collection_1:delete_lot' item.id %}" onsubmit="return confirm('Are you sure you want to discard this expired lot?');">
-                        {% csrf_token %}
-                        <button type="submit" class="delete-button">🗑️ Delete Lot</button>
-                      </form>
+                      {% if item.received_at %}{{ item.received_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
                     </td>
-                  {% else %}
-                    <td></td>
-                  {% endif %}
-                  <td>{{ p.name }}</td>
-                  <td>{{ item.lot_number }}</td>
-                  <td>{{ item.expiry_date|date:"F d, Y" }}</td>
-                  <td>{{ item.current_stock }}</td>
-                  <td>{{ item.units_per_quantity }}</td>
-                  <td>{{ item.accumulated_partial }}</td>
-                  <td>{{ item.product_feature }}</td>
-                </tr>
-              {% endfor %}
+                    <td>{{ item.expiry_date|date:"Y-m-d" }}</td>
+                    <td>{{ item.current_stock }}</td>
+                    <td>{{ item.units_per_quantity }}</td>
+                    <td>{{ item.accumulated_partial }}</td>
+                    <td>{{ item.product_feature }}</td>
+
+                    {# --- Acceptance section (NEW) --- #}
+                    {% with lat=item.acceptance_tests.last %}
+                      <td>
+                        {% if lat %}
+                          {% if lat.passed %}
+                            <span class="badge badge-green">Passed</span>
+                          {% elif lat.tested %}
+                            <span class="badge badge-red">Failed</span>
+                          {% else %}
+                            <span class="badge badge-grey">Not tested</span>
+                          {% endif %}
+                        {% else %}
+                          <span class="badge badge-grey">Not tested</span>
+                        {% endif %}
+                      </td>
+                      <td>{% if lat and lat.test_reference %}{{ lat.test_reference }}{% else %}—{% endif %}</td>
+                      <td>
+                        {% if lat and lat.signed_off_by %}
+                          {{ lat.signed_off_by }}
+                          {% if lat.signed_off_at %}<br><small>{{ lat.signed_off_at|date:"Y-m-d H:i" }}</small>{% endif %}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </td>
+                    {% endwith %}
+
+                    <td>
+                      <a href="{% url 'data_collection_3:create-acceptance-test' item_id=item.id %}">Add/Update</a>
+                    </td>
+                  </tr>
+                {% endfor %}
               {% endfor %}
             </tbody>
+
           </table>
         </div>
       </div>

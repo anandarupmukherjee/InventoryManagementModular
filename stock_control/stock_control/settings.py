@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'inventory',
     'services.data_storage',
+    # "services.data_storage.apps.DataStorageConfig",
 ]
 
 MIDDLEWARE = [
