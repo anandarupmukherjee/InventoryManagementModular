@@ -1,0 +1,7 @@
+{
+    "enable_reporting": true,
+    "enable_analysis": true,
+    "enable_data_collection": true,
+    "enable_stock_admin": true,
+    "enable_purchase_order": true
+}

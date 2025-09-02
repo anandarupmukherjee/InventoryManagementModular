@@ -1,0 +1,29 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register New User</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+</head>
+<body>
+
+    <!-- Navigation Bar / Menu -->
+    <nav>
+        <ul>
+            <li><a href="{% url 'inventory:dashboard' %}">Home</a></li>
+        </ul>
+    </nav>
+
+    <h1>Register New User</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Create User</button>
+    </form>
+
+    <a href="{% url 'inventory:manage_users' %}">Back to Users</a>
+    
+
+</body>
+</html>

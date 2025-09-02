@@ -1,0 +1,7 @@
+enabled_modules:
+  - enable_analysis
+  - enable_reporting
+  - enable_user_interface
+  - enable_stock_admin
+  - enable_data_collection
+

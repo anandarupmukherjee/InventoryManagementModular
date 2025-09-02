@@ -1,0 +1,426 @@
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import F
+from .forms import WithdrawalForm, ProductForm, PurchaseOrderForm, AdminUserCreationForm, AdminUserEditForm, ProductItemForm, PurchaseOrderCompletionForm
+from services.data_storage.models import Product, Withdrawal, PurchaseOrder, ProductItem, PurchaseOrderCompletionLog
+from django.contrib.auth.forms import UserCreationForm
+from io import BytesIO
+from django.contrib.auth.models import User
+from django.http import JsonResponse, HttpResponse
+import datetime
+from datetime import timedelta
+from django.utils import timezone
+from django.utils.timezone import now
+import openpyxl
+from openpyxl.styles import Font
+from django.db.models import Sum 
+import json
+import re
+import csv
+import io
+from django.db.models import Q
+from django.contrib import messages
+from django.apps import apps
+from django.utils.dateparse import parse_date
+import numpy as np  # ✅ Import NumPy for calculations
+import pandas as pd  # ✅ Import Pandas for time series processing
+from statsmodels.tsa.holtwinters import ExponentialSmoothing  # ✅ Exponential Smoothing for Forecasting
+from django.views.decorators.http import require_GET
+from django.utils.timezone import make_aware
+from django.db.models import Sum, Count
+from inventory.access_control import group_required
+
+
+
+
+
+# ✅ Function to check if the user is an admin
+def is_admin(user):
+    return user.is_authenticated and user.is_staff
+
+@group_required(["Inventory Manager"])
+def manage_inventory(request):
+    return render(request, "manage_inventory.html")
+
+@group_required(["Inventory Manager", "Leica Staff"])
+def view_dashboard(request):
+    return render(request, "dashboard.html")
+
+# ✅ Admin-only view to list all users
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def manage_users(request):
+    users = User.objects.all()
+    return render(request, 'registration/manage_users.html', {'users': users})
+
+# ✅ Admin-only view to register a new user
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def register_user(request):
+    if request.method == 'POST':
+        form = AdminUserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('inventory:manage_users')
+    else:
+        form = AdminUserCreationForm()
+    return render(request, 'registration/register_user.html', {'form': form})
+
+# ✅ Admin-only view to edit a user
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def edit_user(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    if request.method == 'POST':
+        form = AdminUserEditForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect('inventory:manage_users')
+    else:
+        form = AdminUserEditForm(instance=user)
+    return render(request, 'registration/edit_user.html', {'form': form, 'user_obj': user})
+
+# ✅ Admin-only view to delete a user
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def delete_user(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    if request.method == "POST":
+        user.delete()
+        return redirect('inventory:manage_users')
+    return render(request, 'registration/delete_user.html', {'user_obj': user})
+
+
+##################### MODULARITY EXPERIMENTAL ##########################
+
+from services.analysis.analysis import inventory_analysis_forecasting as _inventory_analysis_forecasting
+from services.reporting.reporting import download_report as _download_report
+from services.data_collection.data_collection import (
+    parse_barcode as _parse_barcode,
+    get_product_by_barcode as _get_product_by_barcode,
+    get_product_by_id as _get_product_by_id
+)
+from services.data_collection_1.stock_admin import stock_admin as _stock_admin, delete_lot as _delete_lot
+from services.analysis.analysis import get_dashboard_data
+# from services.data_collection.data_collection import parse_barcode_data
+from services.data_collection_2.create_withdrawal import create_withdrawal as _create_withdrawal
+
+from services.data_storage.models import Product, ProductItem, PurchaseOrder
+from django.contrib.auth.models import User
+from collections import Counter, defaultdict
+
+@login_required
+@group_required(["Inventory Manager", "Leica Staff"])
+def inventory_dashboard(request):
+    context = get_dashboard_data()
+
+    # 1. Low stock alerts
+    low_stock_alerts = [
+        p for p in Product.objects.prefetch_related("items").all()
+        if sum(item.current_stock for item in p.items.all()) < p.threshold
+    ]
+    has_low_stock_alerts = len(low_stock_alerts) > 0
+
+    # 2. Expired lots
+    has_expired_lot_alerts = ProductItem.objects.filter(expiry_date__lte=now().date()).exists()
+
+    # 3. Delayed deliveries
+    has_delayed_delivery_alerts = PurchaseOrder.objects.filter(
+        expected_delivery__lt=now()
+    ).exclude(status="Delivered").exists()
+
+    # 4. Products with missing threshold
+    products_with_zero_threshold = Product.objects.filter(threshold=0)
+    has_missing_thresholds = products_with_zero_threshold.exists()
+
+    # 5. Duplicate product names
+    # Normalize names: strip spaces and convert to lowercase
+    raw_names = Product.objects.values_list("name", flat=True)
+    normalized_name_map = defaultdict(list)
+
+    for name in raw_names:
+        normalized = name.strip().lower()
+        normalized_name_map[normalized].append(name)
+
+    # Only consider real duplicates (two or more different entries mapping to same normalized form)
+    duplicate_product_names = [
+        names[0] for names in normalized_name_map.values() if len(set(names)) > 1
+    ]
+
+    # 6. User count
+    total_users = User.objects.count()
+
+    context.update({
+        "has_low_stock_alerts": has_low_stock_alerts,
+        "has_expired_lot_alerts": has_expired_lot_alerts,
+        "has_delayed_delivery_alerts": has_delayed_delivery_alerts,
+        "has_missing_thresholds": has_missing_thresholds,
+        "duplicate_product_names": duplicate_product_names,
+        "total_users": total_users,
+    })
+
+    return render(request, "inventory/dashboard.html", context)
+
+
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def inventory_analysis_forecasting(request):
+    return _inventory_analysis_forecasting(request)
+
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def download_report(request):
+    return _download_report(request)
+
+
+@login_required
+def parse_barcode(request):
+    return _parse_barcode(request)
+
+@login_required
+def get_product_by_barcode(request):
+    return _get_product_by_barcode(request)
+
+@login_required
+def get_product_by_id(request):
+    return _get_product_by_id(request)
+
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def stock_admin(request, product_id=None):
+    response = _stock_admin(request, product_id=product_id)
+    if isinstance(response, dict) and response.get("redirect"):
+        return redirect('inventory:stock_admin')
+    return response
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def delete_lot(request, item_id):
+    response = _delete_lot(request, item_id)
+    if isinstance(response, dict) and response.get("redirect"):
+        return redirect('inventory:stock_admin')
+    return response
+
+
+@login_required
+def create_withdrawal(request):
+    return _create_withdrawal(request)
+
+####################################
+
+
+
+
+
+@login_required
+@group_required(["Inventory Manager", "Leica Staff"])
+def product_list(request):
+    products = Product.objects.all()
+    for product in products:
+        product.full_items = product.get_full_items_in_stock()
+        product.remaining_parts = product.get_remaining_parts()
+        product.total_stock = sum(item.current_stock for item in product.items.all())
+
+    return render(request, 'inventory/product_list.html', {
+        'products': products
+    })
+
+
+# ✅ Updated view function
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def record_purchase_order(request):
+    initial = {}
+    if request.method == "GET":
+        product_code = request.GET.get('product_code')
+        product_name = request.GET.get('product_name')
+        if product_code:
+            initial['product_code'] = product_code
+        if product_name:
+            initial['product_name'] = product_name
+
+    if request.method == "POST":
+        form = PurchaseOrderForm(request.POST)
+        if form.is_valid():
+            po = form.save(commit=False)
+            po.ordered_by = request.user
+
+            # 🧠 Logic to auto-select ProductItem from product_code if not provided
+            if not po.product_item and form.cleaned_data.get("product_code"):
+                product_code = form.cleaned_data["product_code"]
+                product = Product.objects.filter(product_code=product_code).first()
+                if product:
+                    product_item = ProductItem.objects.filter(product=product).order_by('expiry_date').first()
+                    if product_item:
+                        po.product_item = product_item            
+            print(po)
+            po.save()
+
+            if po.status == 'Delivered' and po.product_item:
+                po.product_item.current_stock = F('current_stock') + po.quantity_ordered
+                po.product_item.save()
+                print(po)
+
+            return redirect('inventory:record_purchase_order')
+    else:
+        form = PurchaseOrderForm(initial=initial)
+
+    # 🧮 Recalculate low stock again
+    products = Product.objects.all()
+    low_stock = []
+    for p in products:
+        total_stock = sum(item.current_stock for item in p.items.all())
+        if total_stock < p.threshold:
+            low_stock.append(p)
+
+    return render(request, 'inventory/record_purchase_order.html', {
+        'form': form,
+        'low_stock': low_stock,
+    })
+
+
+
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def track_withdrawals(request):
+    withdrawals = Withdrawal.objects.select_related('product_item', 'user').order_by('-timestamp')
+    for w in withdrawals:
+        w.full_items = w.get_full_items_withdrawn()
+        w.partial_items = w.get_partial_items_withdrawn()
+    return render(request, 'inventory/track_withdrawals.html', {'withdrawals': withdrawals})
+
+
+
+@login_required
+@group_required(["Inventory Manager", "Leica Staff"])
+def track_purchase_orders(request):
+    # Load all POs
+    orders = PurchaseOrder.objects.select_related('product_item', 'ordered_by').order_by('-order_date')
+    for order in orders:
+        if order.expected_delivery < now() and order.status == "Ordered":
+            order.status = "Delayed"
+            order.save()
+
+    # Handle GET barcode scan (initialise form with parsed data)
+    initial = {}
+    if request.method == "GET" and "raw" in request.GET:
+        raw = request.GET.get("raw", "")
+        if raw:
+            response = _parse_barcode(request)
+            if response.status_code == 200:
+                data = json.loads(response.content)
+                product = Product.objects.filter(product_code=data.get("product_code")).first()
+                initial.update({
+                    "barcode": raw,
+                    "product_code": data.get("product_code", ""),
+                    "product_name": product.name if product else "",
+                    "lot_number": data.get("lot_number", ""),
+                    "expiry_date": datetime.datetime.strptime(
+                        data.get("expiry_date", "01.01.1970"), "%d.%m.%Y"
+                    ).date() if data.get("expiry_date") else None,
+                })
+
+    # Handle PO form submission
+    if request.method == "POST":
+        form = PurchaseOrderCompletionForm(request.POST)
+        if form.is_valid():
+            barcode = form.cleaned_data["barcode"]
+            product_code = form.cleaned_data["product_code"]
+            product_name = form.cleaned_data["product_name"]
+            lot_number = form.cleaned_data["lot_number"]
+            expiry_date = form.cleaned_data["expiry_date"]
+            qty = form.cleaned_data["quantity_ordered"]
+
+            # Validate product
+            product = Product.objects.filter(product_code=product_code).first()
+            if not product:
+                form.add_error(None, "Product not found.")
+                return render(request, "inventory/track_purchase_orders.html", {
+                    "purchase_orders": orders,
+                    "completion_form": form
+                })
+
+            # Get or create matching ProductItem
+            item, created = ProductItem.objects.get_or_create(
+                product=product,
+                lot_number=lot_number,
+                expiry_date=expiry_date,
+                defaults={"current_stock": 0}
+            )
+
+            # Update stock
+            item.current_stock = F("current_stock") + qty
+            item.save()
+            print("Trying to find PO for:", item.id, product_code, lot_number, expiry_date)
+            matching = PurchaseOrder.objects.filter(product_item=item, status="Ordered")
+            print("Matching POs:", matching)
+
+            item.refresh_from_db()  # <-- ensures correct values in memory
+
+            # Update matching PurchaseOrder
+            # po = PurchaseOrder.objects.filter(product_item=item, status="Ordered").first()
+            po = PurchaseOrder.objects.filter(
+                Q(product_item=item),
+                Q(status="Ordered") | Q(status="Delayed")
+            ).first()
+
+            if po:
+                print("✅ PO found and will be updated:", po.id)
+                po.status = "Delivered"
+                po.delivered_at = timezone.now()
+                po.save()
+                PurchaseOrderCompletionLog.objects.create(
+                    purchase_order=po,
+                    product_code=po.product_code,
+                    product_name=po.product_name,
+                    lot_number=po.lot_number,
+                    expiry_date=po.expiry_date,
+                    quantity_ordered=po.quantity_ordered,
+                    order_date=po.order_date,
+                    ordered_by=po.ordered_by,
+                    completed_by=request.user,
+                    remarks="Completed via form"
+                )
+
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({
+                    "success": True,
+                    "product_code": product_code,
+                    "status": "Delivered"
+                })
+            return redirect("inventory:track_purchase_orders")
+
+
+        else:
+            return render(request, "inventory/track_purchase_orders.html", {
+                "purchase_orders": orders,
+                "completion_form": form
+            })
+
+    # Initial form for GET request
+    form = PurchaseOrderCompletionForm(initial=initial)
+    return render(request, "inventory/track_purchase_orders.html", {
+        "purchase_orders": orders,
+        "completion_form": form
+    })
+
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def mark_order_delivered(request, order_id):
+    purchase_order = get_object_or_404(PurchaseOrder, id=order_id)
+    if purchase_order.status != 'Delivered':
+        if purchase_order.product_item:
+            purchase_order.product_item.current_stock = F('current_stock') + purchase_order.quantity_ordered
+            purchase_order.product_item.save()
+        purchase_order.status = 'Delivered'
+        purchase_order.save()
+    return redirect('inventory:track_purchase_orders')
+
+
+

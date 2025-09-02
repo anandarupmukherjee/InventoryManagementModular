@@ -1,0 +1,87 @@
+{% load feature_flags %}
+{% load group_tags %}
+
+
+<nav>
+  <ul>
+    <li><a href="{% url 'inventory:dashboard' %}">Dashboard</a></li>
+    <li><a href="{% url 'data_collection_2:create_withdrawal' %}">User Withdrawal</a></li>
+    <li><a href="{% url 'inventory:product_list' %}">Product List</a></li>
+
+    {% if user|has_role_or_admin:"Inventory Manager" %}
+    <!-- Stock Management Dropdown -->
+    <li class="dropdown">
+      <a href="#" class="dropbtn">Stock Management</a>
+      <div class="dropdown-content">
+        <a href="/admin/">Database Admin Panel</a>
+        {% if flags|is_enabled:"enable_stock_admin" %}
+          <a href="{% url 'data_collection_1:stock_admin' %}">Stock Admin</a>
+        {% endif %}
+        <a href="{% url 'inventory:track_withdrawals' %}">Track Withdrawals</a>
+        <a href="{% url 'inventory:record_purchase_order' %}">Record PO</a>
+        <a href="{% url 'inventory:track_purchase_orders' %}">Track PO</a>
+      </div>
+    </li>
+    {% endif %}
+
+
+      <!-- Reports & Analysis Dropdown -->
+      <li class="dropdown">
+        <a href="#" class="dropbtn">Reports & Analysis</a>
+        <div class="dropdown-content">
+          {% if user|has_any_role:"Inventory Manager, Leica Staff" and flags|is_enabled:"enable_reporting" %}
+            <a href="{% url 'reporting:download_report' %}">Report</a>
+          {% endif %}
+          {% if user|has_role_or_admin:"Inventory Manager" and flags|is_enabled:"enable_analysis" %}
+            <a href="{% url 'analysis:inventory_analysis_forecasting' %}">Analysis</a>
+          {% endif %}
+        </div>
+      </li>
+
+    {% if user|has_role_or_admin:"Inventory Manager" %}
+      <!-- User Management Dropdown -->
+      <li class="dropdown">
+        <a href="#" class="dropbtn">User Management</a>
+        <div class="dropdown-content">
+          <a href="{% url 'inventory:manage_users' %}">Manage Users</a>
+          <a href="{% url 'inventory:register_user' %}">Register User</a>
+        </div>
+      </li>
+    {% endif %}
+
+    {% if user.is_authenticated %}
+      <li>
+        <form method="post" action="{% url 'logout' %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" style="background:none;border:none;color:blue;cursor:pointer;">Log out</button>
+        </form>
+      </li>
+    {% else %}
+      <li><a href="{% url 'login' %}">Log in</a></li>
+    {% endif %}
+  </ul>
+</nav>
+
+
+<!-- ✅ Dropdown Hover Delay Script -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const dropdowns = document.querySelectorAll(".dropdown");
+  
+      dropdowns.forEach(drop => {
+        let timer;
+        const content = drop.querySelector(".dropdown-content");
+  
+        drop.addEventListener("mouseenter", () => {
+          clearTimeout(timer);
+          content.classList.add("show");
+        });
+  
+        drop.addEventListener("mouseleave", () => {
+          timer = setTimeout(() => {
+            content.classList.remove("show");
+          }, 1000); // 1-second delay before hiding
+        });
+      });
+    });
+  </script>
