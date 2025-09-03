@@ -20,6 +20,7 @@
     <thead>
       <tr>
         <th>Lot Number</th>
+        <th>Location</th>
         <th>Received</th>
         <th>Expiry</th>
         <th>Stock</th>
@@ -33,9 +34,10 @@
       {% for item in items %}
         <tr {% if item.expiry_date and item.expiry_date <= today %}class="expired"{% endif %}>
           <td>{{ item.lot_number }}</td>
+          <td>{% if item.location %}{{ item.location.name }}{% else %}Central{% endif %}</td>
           <td>{% if item.received_at %}{{ item.received_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
           <td>{% if item.expiry_date %}{{ item.expiry_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-          <td>{{ item.stock_units }}</td>
+          <td>{{ item.current_stock }}</td>
 
           {% with lat=item.acceptance_tests.last %}
             <td>

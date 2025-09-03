@@ -6,6 +6,18 @@ from django.utils import timezone
 from django.utils.timezone import now
 from .models_acceptance import LotAcceptanceTest
 
+class Location(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    is_default = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def get_default(cls):
+        obj, _ = cls.objects.get_or_create(name="Central", defaults={"is_default": True})
+        return obj
+
 class Supplier(models.Model):
     name = models.CharField(max_length=100)
     contact_email = models.EmailField(blank=True, null=True)
@@ -52,6 +64,7 @@ class ProductItem(models.Model):
         ('volume', 'Volume'),
     ]
     product_feature = models.CharField(max_length=10, choices=PRODUCT_FEATURE_CHOICES, default='unit')
+    location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True, related_name="items")
 
     def __str__(self):
         return f"{self.product.name} (Lot {self.lot_number})"
@@ -63,6 +76,15 @@ class ProductItem(models.Model):
     def get_remaining_parts(self):
         """Total partial units (leftover parts across all lots)."""
         return sum(item.accumulated_partial for item in self.items.all())
+
+    def save(self, *args, **kwargs):
+        # Ensure a default location is set
+        if self.location is None:
+            try:
+                self.location = Location.get_default()
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
 
 
 
@@ -86,6 +108,7 @@ class Withdrawal(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     barcode = models.CharField(max_length=128, blank=True, null=True)
+    location = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, blank=True, related_name='withdrawals')
 
     parts_withdrawn = models.PositiveIntegerField(
         default=0,
@@ -105,6 +128,9 @@ class Withdrawal(models.Model):
             self.product_name = product.name
             self.lot_number = self.product_item.lot_number
             self.expiry_date = self.product_item.expiry_date
+            if self.location is None:
+                # default withdrawal location to the item's location if not provided
+                self.location = getattr(self.product_item, 'location', None)
         super().save(*args, **kwargs)
 
     def get_full_items_withdrawn(self):

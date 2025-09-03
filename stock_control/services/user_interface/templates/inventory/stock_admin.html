@@ -104,6 +104,7 @@
                 <th>Units/Item</th>
                 <th>Partial Units</th>
                 <th>Type</th>
+                <th>Location</th>
                 <th>Acceptance</th>    
                 <th>Test Ref</th>          
                 <th>Signed Off</th>        
@@ -145,6 +146,7 @@
                     <td>{{ item.units_per_quantity }}</td>
                     <td>{{ item.accumulated_partial }}</td>
                     <td>{{ item.product_feature }}</td>
+                    <td>{% if item.location %}{{ item.location.name }}{% else %}Central{% endif %}</td>
 
                     {# --- Acceptance section (NEW) --- #}
                     {% with lat=item.acceptance_tests.last %}

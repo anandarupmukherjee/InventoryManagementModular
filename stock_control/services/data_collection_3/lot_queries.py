@@ -42,6 +42,7 @@ def lot_rollup_for_product(product_code: str):
                first_received=Min("id"),           # proxy; no received_at in schema
                last_received=Max("id"),
                earliest_expiry=Min("expiry_date"),
+               locations=Count("location", distinct=True),
            )
            .order_by("lot_number"))
     return product, agg

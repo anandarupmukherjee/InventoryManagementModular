@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 
-from services.data_storage.models import Product, ProductItem, Withdrawal, PurchaseOrder, Supplier
+from services.data_storage.models import Product, ProductItem, Withdrawal, PurchaseOrder, Supplier, Location
 
 # ✅ Custom UserAdmin
 class CustomUserAdmin(BaseUserAdmin):
@@ -42,9 +42,10 @@ class ProductItemAdmin(admin.ModelAdmin):
         "lot_number",
         "expiry_date",
         "current_stock",
-        "product_feature"
+        "product_feature",
+        "location",
     )
-    list_filter = ("product__supplier", "product_feature", "expiry_date")
+    list_filter = ("product__supplier", "product_feature", "expiry_date", "location")
     search_fields = ("product__name", "lot_number")
 
 
@@ -53,12 +54,13 @@ class WithdrawalAdmin(admin.ModelAdmin):
     list_display = (
         "product_item",
         "product_code",
+        "location",
         "quantity",
         "withdrawal_type",
         "timestamp",
         "user"
     )
-    list_filter = ("withdrawal_type", "timestamp")
+    list_filter = ("withdrawal_type", "timestamp", "location")
     search_fields = ("product_code", "product_name", "lot_number", "user__username")
 
 
@@ -74,3 +76,10 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "expected_delivery")
     search_fields = ("product_code", "product_name", "lot_number")
+
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_default")
+    search_fields = ("name",)
+    list_filter = ("is_default",)

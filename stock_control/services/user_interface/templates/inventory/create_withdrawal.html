@@ -88,6 +88,16 @@
             <p>Stock: <span id="stock-display"></span></p>
             <p>Units per Item: <span id="units-display"></span></p>
           </div>
+
+          <label for="id_location_select_barcode">Location:</label>
+          <select id="id_location_select_barcode" name="location_id">
+            <option value="">Default (Central)</option>
+            {% if locations %}
+              {% for loc in locations %}
+                <option value="{{ loc.id }}">{{ loc.name }}</option>
+              {% endfor %}
+            {% endif %}
+          </select>
         </div>
 
 
@@ -110,6 +120,16 @@
             <p>Stock: <span id="manual-stock-display"></span></p>
             <p>Units per Item: <span id="manual-units-display"></span></p>
           </div>
+
+          <label for="id_location_select">Location:</label>
+          <select id="id_location_select" name="location_id">
+            <option value="">Default (Central)</option>
+            {% if locations %}
+              {% for loc in locations %}
+                <option value="{{ loc.id }}">{{ loc.name }}</option>
+              {% endfor %}
+            {% endif %}
+          </select>
         </div>
 
         

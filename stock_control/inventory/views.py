@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import F
 from .forms import WithdrawalForm, ProductForm, PurchaseOrderForm, AdminUserCreationForm, AdminUserEditForm, ProductItemForm, PurchaseOrderCompletionForm
-from services.data_storage.models import Product, Withdrawal, PurchaseOrder, ProductItem, PurchaseOrderCompletionLog
+from services.data_storage.models import Product, Withdrawal, PurchaseOrder, ProductItem, PurchaseOrderCompletionLog, Location
 from services.data_storage.models_acceptance import LotAcceptanceTest
 from django.contrib.auth.forms import UserCreationForm
 from io import BytesIO
@@ -337,11 +337,22 @@ def record_purchase_order(request):
 @login_required
 @user_passes_test(is_admin, login_url='inventory:dashboard')
 def track_withdrawals(request):
-    withdrawals = Withdrawal.objects.select_related('product_item', 'user').order_by('-timestamp')
+    location_id = request.GET.get('location_id') or ''
+    withdrawals = Withdrawal.objects.select_related('product_item', 'user', 'product_item__location').order_by('-timestamp')
+    if location_id:
+        try:
+            withdrawals = withdrawals.filter(product_item__location_id=int(location_id))
+        except (TypeError, ValueError):
+            pass
     for w in withdrawals:
         w.full_items = w.get_full_items_withdrawn()
         w.partial_items = w.get_partial_items_withdrawn()
-    return render(request, 'inventory/track_withdrawals.html', {'withdrawals': withdrawals})
+    locations = Location.objects.all().order_by('name')
+    return render(request, 'inventory/track_withdrawals.html', {
+        'withdrawals': withdrawals,
+        'locations': locations,
+        'selected_location_id': str(location_id)
+    })
 
 
 

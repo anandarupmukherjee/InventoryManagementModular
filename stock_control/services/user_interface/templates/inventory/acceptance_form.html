@@ -19,6 +19,7 @@
   <h2>Record Acceptance Test</h2>
   <p><strong>Product:</strong> {{ item.product.code }} — {{ item.product.name }}<br>
      <strong>Lot #:</strong> {{ item.lot_number }}<br>
+     <strong>Location:</strong> {% if item.location %}{{ item.location.name }}{% else %}Central{% endif %}<br>
      {% if item.received_at %}<strong>Received:</strong> {{ item.received_at|date:"Y-m-d H:i" }}{% endif %}
   </p>
 

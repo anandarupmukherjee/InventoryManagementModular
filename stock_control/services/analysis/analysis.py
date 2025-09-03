@@ -5,7 +5,8 @@ from django.utils.timezone import now
 from django.shortcuts import render
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import datetime
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Value, CharField
+from django.db.models.functions import Coalesce
 from services.data_storage.models import Product, ProductItem, Withdrawal, PurchaseOrder
 
 def get_dashboard_data():
@@ -107,6 +108,7 @@ def inventory_analysis_forecasting(request):
         products = products[:limit]
 
     product_names = [p.name for p in products]
+    product_codes = [p.product_code for p in products]
     current_stock = [float(sum(i.current_stock for i in p.items.all())) for p in products]
     stock_thresholds = [p.threshold for p in products]
     lead_times = [p.lead_time.days for p in products]
@@ -148,7 +150,12 @@ def inventory_analysis_forecasting(request):
 
         if avg_daily > 0 and current > 0:
             run_out = round(current / float(avg_daily), 2)
+            # Clamp run-out to 400 days max for readability
+            if run_out > 400:
+                run_out = 400.0
             reorder = max(run_out - lead_times[idx], 0)
+            if reorder > 400:
+                reorder = 400.0
         else:
             run_out = 0
             reorder = 0
@@ -159,7 +166,7 @@ def inventory_analysis_forecasting(request):
     # === Top Consumed Products ===
     top = (Withdrawal.objects
            .filter(timestamp__date__gte=start_date)
-           .values('product_name')
+           .values('product_code', 'product_name')
            .annotate(total_quantity=Sum('quantity'))
            .order_by('-total_quantity'))
 
@@ -167,11 +174,51 @@ def inventory_analysis_forecasting(request):
         top = top[:limit]
 
     top_consumed_names = [i['product_name'] for i in top]
+    top_consumed_codes = [i.get('product_code') or '' for i in top]
     top_consumed_quantities = [float(i['total_quantity']) for i in top]
+
+    # === Location-specific Withdrawal Totals (within range) ===
+    loc_qs = (Withdrawal.objects
+              .filter(timestamp__date__gte=start_date)
+              .annotate(loc_name=Coalesce(Coalesce('location__name', 'product_item__location__name'), Value('Central', output_field=CharField())))
+              .values('loc_name')
+              .annotate(total_qty=Sum('quantity'))
+              .order_by('-total_qty'))
+    location_names = [row['loc_name'] for row in loc_qs]
+    location_withdrawals = [float(row['total_qty'] or 0) for row in loc_qs]
+
+    # === Delayed deliveries per day in chosen range ===
+    delayed_counts = [
+        PurchaseOrder.objects.filter(status='Delayed', expected_delivery__date=day).count()
+        for day in recent_dates
+    ]
+
+    # === Top 10 deleted quantities by product (lot_discard) ===
+    deleted_qs = (Withdrawal.objects
+                  .filter(withdrawal_type='lot_discard', timestamp__date__gte=start_date)
+                  .values('product_code', 'product_name')
+                  .annotate(total_qty=Sum('quantity'))
+                  .order_by('-total_qty')[:10])
+    deleted_codes = [row['product_code'] or '' for row in deleted_qs]
+    deleted_quantities = [float(row['total_qty'] or 0) for row in deleted_qs]
+    deleted_names = [row['product_name'] or '' for row in deleted_qs]
+
+    # === Top 10 upcoming expiring quantities by product code (next 30 days) among top-consumed items ===
+    top_codes_10 = [c for c in top_consumed_codes[:10] if c]
+    next_30 = today + timedelta(days=30)
+    exp_qs = (ProductItem.objects
+              .filter(product__product_code__in=top_codes_10, expiry_date__range=[today, next_30])
+              .values('product__product_code', 'product__name')
+              .annotate(total_units=Sum('current_stock'))
+              .order_by('-total_units')[:10])
+    upcoming_expiry_codes = [row['product__product_code'] for row in exp_qs]
+    upcoming_expiry_quantities = [float(row['total_units'] or 0) for row in exp_qs]
+    upcoming_expiry_names = [row['product__name'] or '' for row in exp_qs]
 
     # === Final Context ===
     context = {
         "product_names": json.dumps(product_names),
+        "product_codes": json.dumps(product_codes),
         "current_stock": json.dumps(current_stock),
         "stock_thresholds": json.dumps(stock_thresholds),
         "date_labels": json.dumps(date_labels),
@@ -184,7 +231,17 @@ def inventory_analysis_forecasting(request):
         "run_out_days": json.dumps(days_until_run_out),
         "reorder_days": json.dumps(days_until_reorder),
         "top_consumed_names": json.dumps(top_consumed_names),
+        "top_consumed_codes": json.dumps(top_consumed_codes),
         "top_consumed_quantities": json.dumps(top_consumed_quantities),
+        "location_names": json.dumps(location_names),
+        "location_withdrawals": json.dumps(location_withdrawals),
+        "delayed_counts": json.dumps([int(x) for x in delayed_counts]),
+        "deleted_codes": json.dumps(deleted_codes),
+        "deleted_quantities": json.dumps(deleted_quantities),
+        "upcoming_expiry_codes": json.dumps(upcoming_expiry_codes),
+        "upcoming_expiry_quantities": json.dumps(upcoming_expiry_quantities),
+        "upcoming_expiry_names": json.dumps(upcoming_expiry_names),
+        "deleted_names": json.dumps(deleted_names),
         "selected_range": selected_range,
         "selected_limit": selected_limit,
     }

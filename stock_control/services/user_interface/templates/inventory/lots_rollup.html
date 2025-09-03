@@ -23,6 +23,7 @@
         <th>First Received</th>
         <th>Last Received</th>
         <th>Earliest Expiry</th>
+        <th>Locations</th>
       </tr>
     </thead>
     <tbody>
@@ -34,9 +35,10 @@
           <td>{% if row.first_received %}{{ row.first_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
           <td>{% if row.last_received %}{{ row.last_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
           <td>{% if row.earliest_expiry %}{{ row.earliest_expiry|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+          <td>{% if row.locations %}{{ row.locations }}{% else %}—{% endif %}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="6">No lot data available.</td></tr>
+        <tr><td colspan="7">No lot data available.</td></tr>
       {% endfor %}
     </tbody>
   </table>

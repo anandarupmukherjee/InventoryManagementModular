@@ -23,6 +23,7 @@ class WithdrawalForm(forms.ModelForm):
     expiry_date = forms.DateField(
         required=False,
         label="Expiry Date",
+        input_formats=['%Y-%m-%d', '%d.%m.%Y'],
         widget=forms.TextInput(attrs={'readonly': 'readonly', 'id': 'id_expiry_date'})
     )
 
@@ -62,6 +63,7 @@ class ProductItemForm(forms.ModelForm):
             'units_per_quantity',
             'accumulated_partial',
             'product_feature',
+            'location',
         ]
 
 

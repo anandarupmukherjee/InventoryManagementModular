@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from services.data_storage.models import ProductItem
+from services.data_storage.models import Location
 from services.data_storage.models_acceptance import LotAcceptanceTest
 from .lot_queries import lots_for_product, lot_rollup_for_product, _get_product_by_code
 
@@ -73,6 +74,7 @@ def create_lot_instance_form(request, code):
             lot_number=lot_number,
             expiry_date=expiry_date,
             current_stock=stock_units,   # ✅ map to your field
+            location=Location.get_default(),
             # units_per_quantity if you want to set it too:
             # units_per_quantity=request.POST.get("units_per_quantity") or item_default
         )

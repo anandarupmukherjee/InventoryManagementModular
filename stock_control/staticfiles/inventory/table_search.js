@@ -56,7 +56,8 @@ window.addEventListener("load", function () {
     }
 
     if (searchWithdrawal && withdrawalTable) {
-        setupTableSearch("searchWithdrawal", "withdrawalTable", [1, 5, 6]);
+        // Columns: 0 Timestamp, 1 Product, 2 Location, 3 Full, 4 Partial, 5 Type, 6 Code, 7 User
+        setupTableSearch("searchWithdrawal", "withdrawalTable", [1, 6, 7]);
     }
 
     if (searchAdmin && adminTable) {
@@ -70,4 +71,3 @@ window.addEventListener("load", function () {
 
 
 });
-

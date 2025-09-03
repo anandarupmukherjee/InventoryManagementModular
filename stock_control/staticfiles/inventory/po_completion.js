@@ -127,8 +127,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // 🔍 Find matching row
       const row = document.querySelector(`tr[data-product-code="${productCode}"]`);
       if (row) {
-        row.querySelector("td:nth-child(5)").innerHTML = '<span class="status-delivered">✅ Delivered</span>';
-        row.querySelector("td:nth-child(6)").innerHTML = '<span class="text-muted">Complete</span>';
+        // Columns now: 1 Product, 2 Code, 3 PO Ref, 4 Qty, 5 Order Date, 6 Status, 7 Action
+        row.querySelector("td:nth-child(6)").innerHTML = '<span class="status-delivered">✅ Delivered</span>';
+        row.querySelector("td:nth-child(7)").innerHTML = '<span class="text-muted">Complete</span>';
         row.classList.remove("delayed-row");
 
         // 🌟 Optional: visual highlight

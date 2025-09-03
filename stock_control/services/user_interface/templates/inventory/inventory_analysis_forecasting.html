@@ -38,10 +38,18 @@
           </form>
           
 
+    <style>
+      /* Force 2 charts per row on this page */
+      .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+      .chart-tile { height: 360px; cursor: pointer; }
+      @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+    </style>
+
     <div class="chart-grid">
         <div class="chart-tile" onclick="openModal('stockLevelsChart')">
             <canvas id="stockLevelsChart"
                     data-labels='{{ product_names|safe }}'
+                    data-codes='{{ product_codes|safe }}'
                     data-stock='{{ current_stock|safe }}'
                     data-thresholds='{{ stock_thresholds|safe }}'>
             </canvas>
@@ -68,6 +76,7 @@
         <div class="chart-tile" onclick="openModal('leadTimesChart')">
             <canvas id="leadTimesChart"
                     data-names='{{ product_names|safe }}'
+                    data-codes='{{ product_codes|safe }}'
                     data-lead-times='{{ lead_times|safe }}'>
             </canvas>
         </div>
@@ -75,6 +84,7 @@
         <div class="chart-tile" onclick="openModal('runOutForecastChart')">
             <canvas id="runOutForecastChart"
                     data-names='{{ product_names|safe }}'
+                    data-codes='{{ product_codes|safe }}'
                     data-run-out-days='{{ run_out_days|safe }}'
                     data-reorder-days='{{ reorder_days|safe }}'>
             </canvas>
@@ -83,7 +93,38 @@
         <div class="chart-tile" onclick="openModal('topConsumedItemsChart')">
             <canvas id="topConsumedItemsChart"
                     data-names='{{ top_consumed_names|safe }}'
+                    data-codes='{{ top_consumed_codes|safe }}'
                     data-quantities='{{ top_consumed_quantities|safe }}'>
+            </canvas>
+        </div>
+
+        <div class="chart-tile" onclick="openModal('locationWithdrawalsChart')">
+            <canvas id="locationWithdrawalsChart"
+                    data-names='{{ location_names|safe }}'
+                    data-quantities='{{ location_withdrawals|safe }}'>
+            </canvas>
+        </div>
+
+        <div class="chart-tile" onclick="openModal('delayedDeliveriesChart')">
+            <canvas id="delayedDeliveriesChart"
+                    data-dates='{{ date_labels|safe }}'
+                    data-counts='{{ delayed_counts|safe }}'>
+            </canvas>
+        </div>
+
+        <div class="chart-tile" onclick="openModal('deletedLotsChart')">
+            <canvas id="deletedLotsChart"
+                    data-names='{{ deleted_codes|safe }}'
+                    data-fullnames='{{ deleted_names|safe }}'
+                    data-quantities='{{ deleted_quantities|safe }}'>
+            </canvas>
+        </div>
+
+        <div class="chart-tile" onclick="openModal('upcomingExpiryChart')">
+            <canvas id="upcomingExpiryChart"
+                    data-names='{{ upcoming_expiry_codes|safe }}'
+                    data-fullnames='{{ upcoming_expiry_names|safe }}'
+                    data-quantities='{{ upcoming_expiry_quantities|safe }}'>
             </canvas>
         </div>
     </div>

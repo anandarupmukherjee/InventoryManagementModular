@@ -26,12 +26,27 @@
       <!-- Search Bar -->
       <input type="text" id="searchWithdrawal" class="search-bar" placeholder="Search by product, code, or user">
 
+      <!-- Location Filter -->
+      <form method="get" style="margin: 10px 0; display: flex; gap: 10px; align-items: center;">
+        <label for="locationFilter">Filter by Location:</label>
+        <select id="locationFilter" name="location_id" onchange="this.form.submit()" style="max-width: 240px;">
+          <option value="">All Locations</option>
+          {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if selected_location_id == loc.id|stringformat:'s' %}selected{% endif %}>{{ loc.name }}</option>
+          {% endfor %}
+        </select>
+        {% if selected_location_id %}
+          <a href="?" class="btn btn-small">Clear</a>
+        {% endif %}
+      </form>
+
       <div class="table-wrapper">
         <table id="withdrawalTable">
           <thead>
             <tr>
               <th>Timestamp</th>
               <th>Product</th>
+              <th>Location</th>
               <th>Full Items Withdrawn</th>
               <th>Partial Parts Withdrawn</th>
               <th>Withdrawal Type</th>
@@ -44,6 +59,11 @@
             <tr>
               <td>{{ withdrawal.timestamp }}</td>
               <td>{{ withdrawal.product_name|default:"N/A" }}</td>
+              <td>
+                {% if withdrawal.location %}{{ withdrawal.location.name }}
+                {% elif withdrawal.product_item and withdrawal.product_item.location %}{{ withdrawal.product_item.location.name }}
+                {% else %}Central{% endif %}
+              </td>
               <td>{{ withdrawal.full_items }}</td>
               <td>{{ withdrawal.partial_items }}</td>
               <td>{{ withdrawal.withdrawal_type }}</td>
@@ -52,7 +72,7 @@
             </tr>
             {% empty %}
             <tr>
-              <td colspan="7">No withdrawals recorded.</td>
+              <td colspan="8">No withdrawals recorded.</td>
             </tr>
             {% endfor %}
           </tbody>

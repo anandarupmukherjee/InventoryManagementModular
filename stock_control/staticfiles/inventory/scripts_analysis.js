@@ -13,11 +13,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 thresholds: JSON.parse(element.getAttribute("data-thresholds") || "[]"),
                 dates: JSON.parse(element.getAttribute("data-dates") || "[]"),
                 withdrawals: JSON.parse(element.getAttribute("data-withdrawals") || "[]"),
+                counts: JSON.parse(element.getAttribute("data-counts") || "[]"),
                 sma7: JSON.parse(element.getAttribute("data-sma7") || "[]"),
                 sma14: JSON.parse(element.getAttribute("data-sma14") || "[]"),
                 forecastDates: JSON.parse(element.getAttribute("data-forecast-dates") || "[]"),
                 forecastValues: JSON.parse(element.getAttribute("data-forecast-values") || "[]"),
                 names: JSON.parse(element.getAttribute("data-names") || "[]"),
+                codes: JSON.parse(element.getAttribute("data-codes") || "[]"),
                 leadTimes: JSON.parse(element.getAttribute("data-lead-times") || "[]"),
                 runOutDays: JSON.parse(element.getAttribute("data-run-out-days") || "[]"),
                 reorderDays: JSON.parse(element.getAttribute("data-reorder-days") || "[]"),
@@ -30,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    function renderChart(canvasId, chartType, datasets, labels) {
+    function renderChart(canvasId, chartType, datasets, labels, tooltipTitles) {
         const ctx = document.getElementById(canvasId);
         if (ctx) {
             new Chart(ctx.getContext("2d"), {
@@ -40,18 +42,37 @@ document.addEventListener("DOMContentLoaded", function () {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
+                        y: (function(){
+                            const base = { beginAtZero: true, ticks: { precision: 0 } };
+                            // Add axis titles for clarity
+                            if (canvasId === 'runOutForecastChart' || canvasId === 'leadTimesChart') {
+                                base.title = { display: true, text: 'Days' };
+                            } else if (canvasId === 'stockLevelsChart') {
+                                base.title = { display: true, text: 'Units' };
+                            } else if (canvasId === 'withdrawalsOverTimeChart' || canvasId === 'forecastChart' || canvasId === 'topConsumedItemsChart' || canvasId === 'locationWithdrawalsChart') {
+                                base.title = { display: true, text: 'Quantity' };
+                            } else if (canvasId === 'delayedDeliveriesChart') {
+                                base.title = { display: true, text: 'Count' };
                             }
-                        }
+                            return base;
+                        })()
                     },
                     plugins: {
                         legend: { display: true },
                         title: {
                             display: true,
                             text: canvasId.replace(/([A-Z])/g, ' $1').trim()
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    if (tooltipTitles && tooltipTitles.length) {
+                                        const idx = context[0].dataIndex;
+                                        return tooltipTitles[idx] || context[0].label;
+                                    }
+                                    return context[0].label;
+                                }
+                            }
                         }
                     }
                 }
@@ -97,10 +118,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // ✅ Render Run-Out Forecast Chart
     const runOutData = getChartData("runOutForecastChart");
     if (runOutData) {
+        const labels = (runOutData.codes && runOutData.codes.length) ? runOutData.codes : runOutData.names;
         renderChart("runOutForecastChart", "bar", [
             { label: "Days Until Run-Out", data: runOutData.runOutDays, backgroundColor: "red" },
             { label: "Days Until Reorder", data: runOutData.reorderDays, backgroundColor: "orange" }
-        ], runOutData.names);
+        ], labels, runOutData.names);
     }
 
     // ✅ Render Top Consumed Items Chart
@@ -111,4 +133,130 @@ document.addEventListener("DOMContentLoaded", function () {
         ], topConsumedData.topConsumedNames);
     }
 
+    // ✅ Location-specific withdrawals chart
+    const locData = getChartData("locationWithdrawalsChart");
+    if (locData) {
+        renderChart("locationWithdrawalsChart", "bar", [
+            { label: "Withdrawn Qty", data: locData.topConsumedQuantities.length ? locData.topConsumedQuantities : locData['quantities'] || locData.counts || [], backgroundColor: "teal" }
+        ], locData.topConsumedNames.length ? locData.topConsumedNames : locData.names);
+    }
+
+    // ✅ Delayed deliveries over time
+    const delayedData = getChartData("delayedDeliveriesChart");
+    if (delayedData) {
+        renderChart("delayedDeliveriesChart", "line", [
+            { label: "Delayed Deliveries", data: delayedData.counts, borderColor: "#c2410c", fill: false }
+        ], delayedData.dates);
+    }
+
+    // ===== Modal interactions =====
+    window.openModal = function (chartId) {
+        const modal = document.getElementById('chartModal');
+        const modalCanvas = document.getElementById('modalChart');
+        if (!modal || !modalCanvas) return;
+
+        // Clear previous modal chart by resetting canvas
+        const ctx = modalCanvas.getContext('2d');
+        ctx.clearRect(0, 0, modalCanvas.width, modalCanvas.height);
+
+        // Recreate data like the small chart, based on chartId
+        let data = getChartData(chartId);
+        if (!data) return;
+
+        let type = 'bar';
+        let datasets = [];
+        let labels = [];
+
+        switch (chartId) {
+            case 'stockLevelsChart':
+                type = 'bar';
+                datasets = [
+                    { label: 'Current Stock', data: data.stock, backgroundColor: 'blue' },
+                    { label: 'Threshold', data: data.thresholds, backgroundColor: 'red' },
+                ];
+                labels = data.labels;
+                break;
+            case 'withdrawalsOverTimeChart':
+                type = 'line';
+                datasets = [
+                    { label: 'Total Withdrawals', data: data.withdrawals, borderColor: 'green', fill: false },
+                ];
+                labels = data.dates;
+                break;
+            case 'forecastChart':
+                type = 'line';
+                datasets = [
+                    { label: '7-Day SMA', data: data.sma7, borderColor: 'orange', fill: false },
+                    { label: '14-Day SMA', data: data.sma14, borderColor: 'red', fill: false },
+                    { label: 'Forecast (Next 7 Days)', data: data.forecastValues, borderColor: 'purple', borderDash: [5, 5], fill: false },
+                ];
+                labels = [...data.dates, ...data.forecastDates];
+                break;
+            case 'leadTimesChart':
+                type = 'bar';
+                datasets = [
+                    { label: 'Lead Time (Days)', data: data.leadTimes, backgroundColor: 'blue' },
+                ];
+                labels = data.names;
+                break;
+            case 'runOutForecastChart':
+                type = 'bar';
+                datasets = [
+                    { label: 'Days Until Run-Out', data: data.runOutDays, backgroundColor: 'red' },
+                    { label: 'Days Until Reorder', data: data.reorderDays, backgroundColor: 'orange' },
+                ];
+                labels = (data.codes && data.codes.length) ? data.codes : data.names;
+                break;
+            case 'topConsumedItemsChart':
+                type = 'bar';
+                datasets = [
+                    { label: 'Top 5 Consumed Items', data: data.topConsumedQuantities, backgroundColor: 'purple' },
+                ];
+                labels = data.topConsumedNames;
+                break;
+            case 'locationWithdrawalsChart':
+                type = 'bar';
+                datasets = [
+                    { label: 'Withdrawn Qty', data: (data.topConsumedQuantities && data.topConsumedQuantities.length) ? data.topConsumedQuantities : (data.quantities || data.counts || []), backgroundColor: 'teal' },
+                ];
+                labels = (data.topConsumedNames && data.topConsumedNames.length) ? data.topConsumedNames : data.names;
+                break;
+            case 'delayedDeliveriesChart':
+                type = 'line';
+                datasets = [
+                    { label: 'Delayed Deliveries', data: data.counts, borderColor: '#c2410c', fill: false },
+                ];
+                labels = data.dates;
+                break;
+            default:
+                return;
+        }
+
+        new Chart(modalCanvas.getContext('2d'), {
+            type,
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                plugins: {
+                    legend: { display: true },
+                    title: { display: true, text: chartId.replace(/([A-Z])/g, ' $1').trim() }
+                }
+            }
+        });
+
+        modal.style.display = 'block';
+    };
+
+    window.closeModal = function () {
+        const modal = document.getElementById('chartModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    // Close modal when clicking outside content
+    const modal = document.getElementById('chartModal');
+    modal?.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
 });

@@ -3,6 +3,7 @@ from django.db.models import F
 import datetime
 
 from services.data_storage.models import Product, ProductItem, Withdrawal
+from services.data_storage.models import Location
 from inventory.forms import WithdrawalForm
 
 
@@ -20,15 +21,22 @@ def create_withdrawal(request):
                 request.POST.get("barcode_manual")
             )
             product_dropdown = request.POST.get("product_dropdown")
+            location_id = request.POST.get("location_id")
             lot_number = request.POST.get("lot_number")
-            expiry_date = request.POST.get("expiry_date")
-
-            # ✅ Convert expiry if in DD.MM.YYYY format
-            if expiry_date and '.' in expiry_date:
-                try:
-                    expiry_date = datetime.datetime.strptime(expiry_date, "%d.%m.%Y").date()
-                except ValueError:
-                    expiry_date = None  # fallback
+            expiry_date_raw = request.POST.get("expiry_date")
+            expiry_date = None
+            # ✅ Normalize expiry string to a date object
+            if expiry_date_raw:
+                if isinstance(expiry_date_raw, str):
+                    try:
+                        if '.' in expiry_date_raw:
+                            expiry_date = datetime.datetime.strptime(expiry_date_raw, "%d.%m.%Y").date()
+                        else:
+                            expiry_date = datetime.datetime.strptime(expiry_date_raw, "%Y-%m-%d").date()
+                    except ValueError:
+                        expiry_date = None
+                else:
+                    expiry_date = expiry_date_raw
 
             print("🔍 DEBUG Withdrawal:")
             print("Product code:", barcode)
@@ -40,7 +48,10 @@ def create_withdrawal(request):
             item = None
             if product_dropdown:
                 product = Product.objects.filter(id=product_dropdown).first()
-                item = ProductItem.objects.filter(product=product).order_by('-expiry_date').first()
+                item_qs = ProductItem.objects.filter(product=product)
+                if location_id:
+                    item_qs = item_qs.filter(location_id=location_id)
+                item = item_qs.order_by('-expiry_date').first()
             else:
                 # Validate lot_number and expiry_date before querying
                 # Normalize barcode
@@ -56,22 +67,24 @@ def create_withdrawal(request):
                         item_qs = item_qs.filter(lot_number__iexact=lot_number.strip())
 
                     if expiry_date:
-                        try:
-                            if '.' in expiry_date:
-                                expiry_date_obj = datetime.datetime.strptime(expiry_date, "%d.%m.%Y").date()
-                            else:
-                                expiry_date_obj = datetime.datetime.strptime(expiry_date, "%Y-%m-%d").date()
+                        item_qs = item_qs.filter(expiry_date=expiry_date)
 
-                            item_qs = item_qs.filter(expiry_date=expiry_date_obj)
-                        except ValueError:
-                            pass  # Ignore if can't parse
-
+                    if location_id:
+                        item_qs = item_qs.filter(location_id=location_id)
                     item = item_qs.first()
 
 
             if item:
                 withdrawal.product_item = item
                 withdrawal.barcode = barcode
+                # Persist chosen location on the withdrawal
+                if location_id:
+                    try:
+                        withdrawal.location_id = int(location_id)
+                    except (TypeError, ValueError):
+                        withdrawal.location = getattr(item, 'location', None)
+                else:
+                    withdrawal.location = getattr(item, 'location', None)
 
                 if item.product_feature == 'volume':
                     volume_qty = form.cleaned_data.get('quantity', 0)
@@ -115,4 +128,5 @@ def create_withdrawal(request):
         form = WithdrawalForm()
 
     products = Product.objects.all()
-    return render(request, 'inventory/create_withdrawal.html', {'form': form, 'products': products})
+    locations = Location.objects.all().order_by('name')
+    return render(request, 'inventory/create_withdrawal.html', {'form': form, 'products': products, 'locations': locations})
