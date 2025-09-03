@@ -17,11 +17,13 @@
     {% include "includes/navbar.html" %}
 
 
-  <div class="dashboard-container" style="display: flex; gap: 20px; align-items: flex-start;">
+  <div class="dashboard-container form-v2 two-col w-75 gap-5p">
     
     <!-- Purchase Orders Table -->
-    <div class="card table-card" style="flex: 2;">
+    <div class="col col-2">
+    <div class="card table-card">
       <h2>Purchase Orders</h2>
+      <div class="table-wrapper">
       <table>
         <thead>
           <tr>
@@ -78,13 +80,17 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
+    </div>
     </div>
 
     <!-- Complete PO Form -->
-<div class="card form-card" style="flex: 1;">
+<div class="col col-1">
+<div class="card form-card">
   <h2>Complete Purchase Order</h2>
   <!-- Completion Submission Form -->
-  <form method="post" id="po-completion-form">
+  <div class="form-body">
+  <form method="post" id="po-completion-form" class="form-v2-form">
     {% csrf_token %}
     {{ completion_form.non_field_errors }}
 
@@ -105,9 +111,9 @@
         {{ completion_form.product_name|add_class:"form-control" }}
       </div>
       <!-- Lot mode toggle -->
-      <div class="mb-2">
-        <label><input type="radio" name="lot_mode" value="single" checked> Single lot</label>
-        <label style="margin-left: 1rem;"><input type="radio" name="lot_mode" value="multiple"> Multiple lots</label>
+      <div class="radio-group inline mb-2">
+        <label class="radio-pill"><input type="radio" name="lot_mode" value="single" checked> Single lot</label>
+        <label class="radio-pill"><input type="radio" name="lot_mode" value="multiple"> Multiple lots</label>
       </div>
 
       <!-- Single lot section -->
@@ -155,8 +161,13 @@
     <!-- <input type="hidden" name="status" value="Delivered"> -->
 
 
-    <button type="submit" class="btn btn-success mt-3">Mark as Delivered</button>
+    <div class="form-actions-sticky">
+      <button type="submit" class="btn btn-success mt-3">Mark as Delivered</button>
+      <a href="{% url 'inventory:track_purchase_orders' %}" class="btn btn-secondary">Cancel</a>
+    </div>
   </form>
+  </div>
+</div>
 </div>
 
   </div>

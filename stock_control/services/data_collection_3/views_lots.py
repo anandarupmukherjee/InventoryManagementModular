@@ -6,6 +6,8 @@ from services.data_storage.models import ProductItem
 from services.data_storage.models import Location
 from services.data_storage.models_acceptance import LotAcceptanceTest
 from .lot_queries import lots_for_product, lot_rollup_for_product, _get_product_by_code
+from datetime import date as _date
+from decimal import Decimal, InvalidOperation
 
 
 # add this helper near the top
@@ -59,24 +61,69 @@ def create_acceptance_test(request, item_id):
     return render(request, "inventory/acceptance_form.html", {"item": item, "product_code": pcode})
 
 
+def _parse_date_yyyy_mm_dd(value: str):
+    if not value:
+        return None
+    try:
+        return _date.fromisoformat(value)
+    except Exception:
+        # Fallback to strict format
+        try:
+            from datetime import datetime as _dt
+            return _dt.strptime(value, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+
 def create_lot_instance_form(request, code):
     if request.method == "POST":
-        lot_number = request.POST.get("lot_number")
-        expiry_date = request.POST.get("expiry_date") or None
-        stock_units = request.POST.get("stock_units") or 0  # from form
-        # received_at not in your model; omit it
+        lot_number = (request.POST.get("lot_number") or "").strip()
+        expiry_date_raw = (request.POST.get("expiry_date") or "").strip()
+        stock_units_raw = (request.POST.get("stock_units") or "0").strip()
 
-        from services.data_storage.models import ProductItem
+        errors = {}
+
+        # Validate lot number
+        if not lot_number:
+            errors["lot_number"] = "Lot number is required."
+
+        # Validate expiry date (optional but if provided must be valid)
+        expiry_date_val = None
+        if expiry_date_raw:
+            expiry_date_val = _parse_date_yyyy_mm_dd(expiry_date_raw)
+            if expiry_date_val is None:
+                errors["expiry_date"] = "Enter a valid date in YYYY-MM-DD (e.g., 2025-09-30)."
+
+        # Validate stock units
+        stock_units_val = Decimal("0")
+        try:
+            stock_units_val = Decimal(stock_units_raw)
+            if stock_units_val < 0:
+                errors["stock_units"] = "Stock units must be zero or positive."
+        except (InvalidOperation, ValueError):
+            errors["stock_units"] = "Enter a valid number for stock units."
+
+        if errors:
+            # Re-render form with errors and sticky values
+            context = {
+                "code": code,
+                "form_errors": errors,
+                "form_values": {
+                    "lot_number": lot_number,
+                    "expiry_date": expiry_date_raw,
+                    "stock_units": stock_units_raw,
+                },
+            }
+            return render(request, "inventory/create_lot_instance.html", context)
+
+        # Proceed to create record
         product = _get_product_by_code(code)
-
         ProductItem.objects.create(
             product=product,
             lot_number=lot_number,
-            expiry_date=expiry_date,
-            current_stock=stock_units,   # ✅ map to your field
+            expiry_date=expiry_date_val or _date.today(),
+            current_stock=stock_units_val,
             location=Location.get_default(),
-            # units_per_quantity if you want to set it too:
-            # units_per_quantity=request.POST.get("units_per_quantity") or item_default
         )
         return redirect(reverse("data_collection_3:product-lots-instances", kwargs={"code": code}))
 

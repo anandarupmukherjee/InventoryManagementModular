@@ -50,7 +50,7 @@
   <!-- Navigation Bar -->
   {% include "includes/navbar.html" %}
 
-  <div class="dashboard-container">
+  <div class="dashboard-container form-v2 w-80">
     {% now "Y-m-d" as today_str %}
 
 
@@ -62,13 +62,18 @@
       <div class="card form-card narrow-card">
         <h2>{% if editing_product %}Edit Product: {{ editing_product.name }}{% else %}Add New Product{% endif %}</h2>
 
-        <form method="get" action="{% url 'data_collection_1:stock_admin' %}">
-          <label for="id_barcode_scan">Scan or Enter Barcode:</label>
-          <input type="text" name="raw" id="id_barcode_scan" placeholder="Scan barcode here" autofocus>
-          <button type="submit">Fetch Product</button>
+        <div class="form-body">
+        <form method="get" action="{% url 'data_collection_1:stock_admin' %}" class="form-v2-form">
+          <div class="form-row">
+            <label for="id_barcode_scan">Scan or Enter Barcode:</label>
+            <input type="text" name="raw" id="id_barcode_scan" placeholder="Scan barcode here" autofocus>
+          </div>
+          <div class="form-actions-sticky">
+            <button type="submit" class="btn btn-secondary">Fetch Product</button>
+          </div>
         </form>
 
-        <form method="POST">
+        <form method="POST" class="form-v2-form">
           {% csrf_token %}
           <fieldset>
             <legend>Product Details</legend>
@@ -78,10 +83,14 @@
             <legend>Lot Information</legend>
             {{ product_item_form.as_p }}
           </fieldset>
-          <button type="submit">
-            {% if editing_product %}Save Changes{% else %}Add Product and Lot{% endif %}
-          </button>
+          <div class="form-actions-sticky">
+            <button type="submit" class="btn btn-primary">
+              {% if editing_product %}Save Changes{% else %}Add Product and Lot{% endif %}
+            </button>
+            <a href="{% url 'data_collection_1:stock_admin' %}" class="btn btn-secondary">Cancel</a>
+          </div>
         </form>
+        </div>
 
         {% if editing_product %}
           <p><a href="{% url 'data_collection_1:stock_admin' %}">Create a new product instead</a></p>

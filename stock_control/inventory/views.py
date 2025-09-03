@@ -29,7 +29,7 @@ import pandas as pd  # ✅ Import Pandas for time series processing
 from statsmodels.tsa.holtwinters import ExponentialSmoothing  # ✅ Exponential Smoothing for Forecasting
 from django.views.decorators.http import require_GET
 from django.utils.timezone import make_aware
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Exists, OuterRef
 from django.db.models import Prefetch
 from inventory.access_control import group_required
 
@@ -153,6 +153,20 @@ def inventory_dashboard(request):
     # 6. User count
     total_users = User.objects.count()
 
+    # 7. Lots testing summary and locations mapping
+    eligible_lots = ProductItem.objects.all().filter(current_stock__gt=0)
+    tested_exists = LotAcceptanceTest.objects.filter(product_item=OuterRef('pk'), tested=True)
+    failed_exists = LotAcceptanceTest.objects.filter(product_item=OuterRef('pk'), tested=True, passed=False)
+
+    lots_not_tested_count = eligible_lots.annotate(has_tested=Exists(tested_exists)).filter(has_tested=False).count()
+    failed_lots_count = eligible_lots.annotate(has_failed=Exists(failed_exists)).filter(has_failed=True).count()
+
+    total_lots_count = ProductItem.objects.count()
+    locations_mapped_count = ProductItem.objects.filter(location__isnull=False).count()
+    unmapped_lots_count = total_lots_count - locations_mapped_count
+    # Number of locations excluding the default
+    locations_count = Location.objects.filter(is_default=False).count()
+
     context.update({
         "has_low_stock_alerts": has_low_stock_alerts,
         "has_expired_lot_alerts": has_expired_lot_alerts,
@@ -160,6 +174,12 @@ def inventory_dashboard(request):
         "has_missing_thresholds": has_missing_thresholds,
         "duplicate_product_names": duplicate_product_names,
         "total_users": total_users,
+        "lots_not_tested_count": lots_not_tested_count,
+        "failed_lots_count": failed_lots_count,
+        "locations_mapped_count": locations_mapped_count,
+        "total_lots_count": total_lots_count,
+        "unmapped_lots_count": unmapped_lots_count,
+        "locations_count": locations_count,
     })
 
     return render(request, "inventory/dashboard.html", context)

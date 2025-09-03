@@ -93,32 +93,81 @@ nav ul li a:hover {
 /* ======================== */
 /* Table Styles */
 /* ======================== */
+/* ---------- Tables (improved readability) ---------- */
 .table-wrapper {
-    overflow-x: auto;
-    border-radius: 8px;
-    border: 1px solid #ccc;
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb; /* token border */
 }
 
 table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    background: white;
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: #ffffff;
+  min-width: 1000px; /* allow horizontal scroll on narrow viewports, reduced to fit more */
 }
 
 th, td {
-    padding: 14px;
-    border-bottom: 1px solid #dee2e6;
-    text-align: center;
+  padding: 12px 10px; /* row height around ~44-48px */
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px; /* row text */
 }
 
-th {
-    background: #007bff;
-    color: white;
+/* Sticky header */
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #2563eb; /* header bg */
+  color: #ffffff;
 }
 
-tr:hover {
-    background: #f1f1f1;
+/* Sticky actions column on the right */
+.sticky-right {
+  position: sticky;
+  right: 0;
+  background: #ffffff;
+  box-shadow: -4px 0 6px rgba(0,0,0,0.03);
+}
+
+/* Zebra striping and hover */
+tbody tr:nth-child(even) {
+  background: #fafafa; /* zebra */
+}
+tbody tr:hover {
+  background: #eef6ff; /* hover */
+}
+
+/* Utilities */
+.nowrap { white-space: nowrap; }
+.text-right { text-align: right; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-wrap { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp-2 { -webkit-line-clamp: 2; }
+
+/* Product List specific columns */
+#productTable .col-name { width: 30%; }
+#productTable .col-code { width: 12%; }
+#productTable .col-supplier { width: 10%; }
+#productTable .col-num { width: 8%; }
+#productTable .col-lots { width: 12%; font-size: 12px; }
+
+#productTable .lots-line { white-space: nowrap; font-size: 12px; }
+
+/* Search inputs full width inside cards */
+.table-card .search-bar { width: 100%; margin: 0 0 12px 0; height: 40px; }
+
+/* ---------- Responsive adjustments ---------- */
+@media (max-width: 1024px) {
+  table { min-width: auto; }
+  thead th, tbody td { padding: 10px 8px; font-size: 13px; }
+  /* Allow wrapping for codes/supplier on small screens to avoid horizontal scroll */
+  #productTable .col-code,
+  #productTable .col-supplier,
+  #productTable .col-lots { white-space: normal; }
+  /* Keep numeric columns compact and right-aligned */
+  #productTable .col-num { white-space: nowrap; text-align: right; }
 }
 
 /* ======================== */
@@ -670,19 +719,13 @@ body {
     width: 100%;
   }
   
-  .table-card-wrapper .wide-card {
-    flex: 1.5 1 0;
-    min-width: 400px;
-  }
-  
-  .table-card-wrapper .narrow-card {
-    flex: 1 1 0;
-    min-width: 300px;
-  }
+  /* Stock Admin desired ratio: left 1/3, right 2/3 */
+  .table-card-wrapper .narrow-card { flex: 1 1 0; min-width: 300px; }
+  .table-card-wrapper .wide-card   { flex: 2 1 0; min-width: 400px; }
   
   
   .table-card-wrapper .card {
-    flex: 1 1 32%;
+    /* Allow narrow-card/wide-card flex to control sizing */
     min-width: 300px;
     max-height: 1000px;
     display: flex;
@@ -719,8 +762,8 @@ body {
 /* ======================== */
 .status-indicator {
     display: inline-block;
-    width: 16px;
-    height: 16px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
   }
   
@@ -740,10 +783,11 @@ body {
   }
 
   
-  .dashboard-grid {
+.dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
-    gap: 20px;
+    gap: 16px; /* tighter, consistent gap */
+    align-items: start; /* prevent overlap; cards align to start */
     margin-top: 20px;
 }
 
@@ -752,7 +796,11 @@ body {
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    min-width: 0; /* allow content to shrink within grid cell */
+    overflow: hidden; /* contain content within card */
 }
+/* Ensure base cards also clip overflow */
+.card { overflow: hidden; }
 
 /* Optional: Ensure charts are not squashed */
 .dashboard-card canvas {
@@ -767,6 +815,52 @@ body {
     border-radius: 50%;
 }
 
+/* Dashboard: summary table should not overflow */
+.table-scroll { overflow-x: auto; }
+.alert-table {
+  width: 100%;
+  table-layout: fixed; /* predictable column widths */
+  border-collapse: collapse;
+}
+.alert-table th, .alert-table td {
+  overflow: hidden; /* clip long text inside cells */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8px 10px;
+}
+/* First column: give more room for labels */
+.alert-table th:first-child, .alert-table td:first-child {
+  width: 65%;
+}
+/* Last column: reserve space for the dot and center it */
+.alert-table th:last-child, .alert-table td:last-child {
+  width: 56px;          /* reserve space for larger dot */
+  min-width: 56px;
+  max-width: 64px;
+  text-align: center;
+  padding-left: 8px;
+  padding-right: 8px;
+  vertical-align: middle;
+}
+/* Ensure the status dot is always visible and contrasted */
+.alert-table td:last-child .status-indicator,
+.alert-table th:last-child .status-indicator {
+  display: inline-block;
+  width: 20px;   /* larger dot for visibility */
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #ffffff inset, 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+/* Ensure cell content aligns nicely */
+.alert-table th, .alert-table td { vertical-align: middle; }
+/* Ensure the status indicator column retains space and centers its dot */
+.alert-table td:last-child, .alert-table th:last-child {
+  width: 32px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .green {
     background-color: #28a745;
 }
@@ -774,6 +868,13 @@ body {
 .blinking-red {
     background-color: red;
     animation: blinkRed 1s infinite alternate;
+}
+
+/* Optional: softer blink variant */
+.blink { animation: softBlink 1.2s infinite alternate; }
+@keyframes softBlink {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
 }
 
 @keyframes blinkRed {
@@ -924,3 +1025,255 @@ body {
     margin: 0 auto 20px;
 }
 
+/* Product list: colored lot icons */
+#productTable .lot-icon { font-weight: 700; }
+#productTable .lot-ok { color: #16a34a; }       /* green-600 */
+#productTable .lot-bad { color: #dc2626; }      /* red-600 */
+#productTable .lot-unknown { color: #6b7280; }  /* gray-600 */
+
+/* Forms v2: ensure date/datetime pickers match input sizing */
+.form-v2 input[type="date"],
+.form-v2 input[type="datetime-local"] {
+  width: 100%;
+  height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cfd6df;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+/* =========================
+   System Summary (scoped v2)
+   ========================= */
+.sys-summary-v2 { position: relative; overflow: hidden; }
+.sys-summary-v2 .summary-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.sys-summary-v2 .sum-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef0f2;
+}
+.sys-summary-v2 .sum-label {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sys-summary-v2 .sum-dot {
+  flex: 0 0 56px; display: flex; align-items: center; justify-content: center;
+}
+.sys-summary-v2 .details { white-space: normal; max-height: 120px; overflow: auto; padding-right: 4px; }
+.sys-summary-v2 .status-indicator { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.08); }
+
+/* ===== Layout helpers: two column ===== */
+.two-col {
+  display: flex;
+  gap: 20px; /* ~20px gap between columns */
+  align-items: flex-start;
+  width: 100%;
+}
+/* Gap utilities */
+.gap-24 { gap: 24px; }
+.gap-28 { gap: 28px; }
+.gap-32 { gap: 32px; }
+/* Percentage gap utility */
+.gap-5p { gap: 5%; }
+.two-col .col {
+  flex: 1 1 0;
+  min-width: 0; /* prevent overflow from wide content */
+}
+/* Optional width ratios */
+.two-col .col-2 { flex: 2 1 0; }
+.two-col .col-1 { flex: 1 1 0; }
+@media (max-width: 1024px) {
+  .two-col { flex-direction: column; }
+}
+
+/* ===== Full-width container and cards ===== */
+/* Ensure pages can use full width with comfortable side padding */
+.dashboard-container {
+  max-width: none;
+  margin: 100px 0 20px;
+  padding: 0 24px;
+}
+
+/* 75% width variant for wide pages that should be narrower */
+.dashboard-container.w-75 {
+  width: 75%;
+  margin: 100px auto 20px; /* center horizontally */
+}
+@media (max-width: 1024px) {
+  .dashboard-container.w-75 { width: 100%; }
+}
+
+/* 80% width variant */
+.dashboard-container.w-80 {
+  width: 80%;
+  margin: 100px auto 20px;
+}
+@media (max-width: 1024px) {
+  .dashboard-container.w-80 { width: 100%; }
+}
+
+/* Cards should grow to available width */
+.card, .table-card, .form-card {
+  width: 100%;
+  max-width: none;
+}
+
+/* Optional ratio without extra classes: uncomment to bias left column
+.two-col .col:first-child { flex: 3 1 0; }
+.two-col .col:last-child  { flex: 2 1 0; }
+*/
+
+/* ==========================================================
+   FORMS v2
+   Scope: Create Withdrawal form redesign and shared form utils
+   Notes: Non-breaking; styles apply only under .form-v2 container
+   ========================================================== */
+.form-v2 .form-card {
+  position: relative;
+  overflow: visible;
+}
+
+.form-v2 .form-body {
+  max-width: min(100%, 820px);
+  margin: 0 auto;
+}
+
+/* Grid: 1 column below 1200px, 2 columns at ≥1200px */
+.form-v2 .form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px 20px;
+  align-items: start;
+}
+@media (min-width: 1200px) {
+  .form-v2 .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Rows and general spacing */
+.form-v2 .form-row {
+  min-width: 0; /* prevent overflow in grid children */
+}
+
+.form-v2 label {
+  display: block;
+  font-weight: 600;
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
+/* Inputs: standardized height and full width */
+.form-v2 input[type="text"],
+.form-v2 input[type="email"],
+.form-v2 input[type="password"],
+.form-v2 input[type="number"],
+.form-v2 select,
+.form-v2 textarea {
+  width: 100%;
+  height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cfd6df;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.2;
+  background: #fff;
+  box-sizing: border-box;
+}
+.form-v2 textarea { height: auto; min-height: 88px; }
+.form-v2 input[readonly] { background-color: #f8fafc; text-overflow: ellipsis; }
+.form-v2 input:focus, .form-v2 select:focus, .form-v2 textarea:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Field notes and error states */
+.form-v2 .field-note {
+  margin-top: 6px;
+  color: #6b7280; /* muted */
+  font-size: 12px;
+}
+.form-v2 .error-message {
+  margin-top: 6px;
+  color: #b91c1c; /* red-700 */
+  font-size: 12px;
+}
+.form-v2 .has-error input,
+.form-v2 .has-error select,
+.form-v2 .has-error textarea,
+.form-v2 input.error,
+.form-v2 select.error,
+.form-v2 textarea.error {
+  border-color: #ef4444; /* red-500 */
+}
+
+/* Radio group: compact inline pills */
+.form-v2 .radio-group.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+.form-v2 .radio-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #cfd6df;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  user-select: none;
+}
+.form-v2 .radio-pill input[type="radio"] {
+  accent-color: #2563eb;
+}
+.form-v2 .radio-pill:hover { background: #f8fafc; }
+.form-v2 .radio-pill:has(input[type="radio"]:focus-visible) {
+  outline: 3px solid rgba(37, 99, 235, 0.25);
+  outline-offset: 2px;
+}
+
+/* Section dividers */
+.form-v2 .section-divider {
+  margin: 16px 0 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
+.form-v2 .section-divider h2 {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.form-v2 .section { margin-bottom: 12px; }
+
+/* Item stats small text */
+.form-v2 .item-stats p { margin: 6px 0; color: #4b5563; font-size: 13px; }
+
+/* Sticky action bar within card */
+.form-v2 .form-actions-sticky {
+  position: sticky;
+  bottom: -20px; /* aligns with card padding */
+  padding: 12px 0 0;
+  margin-top: 18px;
+  background: linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0.9) 60%, rgba(255,255,255,0));
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Prevent content overflow and wrap long values where applicable */
+.form-v2 .form-card, .form-v2 .form-body, .form-v2 .form-row { min-width: 0; }
+.form-v2 .form-row *, .form-v2 p, .form-v2 span { overflow-wrap: anywhere; }
+
+/* Buttons in sticky bar */
+.form-v2 .form-actions-sticky .btn { height: 40px; padding: 0 14px; }

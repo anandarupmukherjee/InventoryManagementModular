@@ -16,32 +16,46 @@
   </style>
 </head>
 <body>
-  <h2>Record Acceptance Test</h2>
-  <p><strong>Product:</strong> {{ item.product.code }} — {{ item.product.name }}<br>
-     <strong>Lot #:</strong> {{ item.lot_number }}<br>
-     <strong>Location:</strong> {% if item.location %}{{ item.location.name }}{% else %}Central{% endif %}<br>
-     {% if item.received_at %}<strong>Received:</strong> {{ item.received_at|date:"Y-m-d H:i" }}{% endif %}
-  </p>
+  <div class="dashboard-container form-v2">
+    <div class="card form-card">
+      <div class="form-body">
+        <h2>Record Acceptance Test</h2>
+        <p><strong>Product:</strong> {{ item.product.code }} — {{ item.product.name }}<br>
+           <strong>Lot #:</strong> {{ item.lot_number }}<br>
+           <strong>Location:</strong> {% if item.location %}{{ item.location.name }}{% else %}Central{% endif %}<br>
+           {% if item.received_at %}<strong>Received:</strong> {{ item.received_at|date:"Y-m-d H:i" }}{% endif %}
+        </p>
 
-  <form method="post">
-    {% csrf_token %}
-    <label><input type="checkbox" name="tested"> Tested</label>
-    <label><input type="checkbox" name="passed"> Passed</label>
+        <form method="post" class="form-v2-form">
+          {% csrf_token %}
+          <div class="radio-group inline" style="margin-bottom: 12px;">
+            <label class="radio-pill"><input type="checkbox" name="tested"> Tested</label>
+            <label class="radio-pill"><input type="checkbox" name="passed"> Passed</label>
+          </div>
 
-    <label>Signed off by</label>
-    <input type="text" name="signed_off_by" placeholder="Name">
+          <div class="form-row">
+            <label>Signed off by</label>
+            <input type="text" name="signed_off_by" placeholder="Name">
+          </div>
 
-    <label>Signed off at (YYYY-MM-DD HH:MM)</label>
-    <input type="text" name="signed_off_at" placeholder="2025-09-02 14:30">
+          <div class="form-row">
+            <label>Signed off at</label>
+            <input type="datetime-local" name="signed_off_at" step="60">
+            <div class="field-note">Select date and time (24h).</div>
+          </div>
 
-    <label>Test reference</label>
-    <input type="text" name="test_reference" placeholder="e.g., LAB-QA-2025-0912">
+          <div class="form-row">
+            <label>Test reference</label>
+            <input type="text" name="test_reference" placeholder="e.g., LAB-QA-2025-0912">
+          </div>
 
-    <div style="margin-top:12px">
-      <button type="submit">Save</button>
-      <a href="{% url 'data_collection_3:product-lots-instances' code=product_code %}">Cancel</a>
-
+          <div class="form-actions-sticky">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{% url 'data_collection_3:product-lots-instances' code=product_code %}" class="btn btn-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
     </div>
-  </form>
+  </div>
 </body>
 </html>

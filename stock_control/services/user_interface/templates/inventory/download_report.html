@@ -16,47 +16,61 @@
     {% include "includes/navbar.html" %}
 
 
-  <div class="dashboard-container">
-    <h2>Export Data from Inventory System</h2>
+  <div class="dashboard-container form-v2 w-80">
+    <div class="card form-card">
+      <div class="form-body">
+        <h2>Export Data from Inventory System</h2>
 
-    <form method="get" id="downloadForm">
-        <label>Select Model:</label>
-        <select name="model" id="modelSelect">
-          {% for model in models %}
-            <option value="{{ model }}" {% if model == selected_model %}selected{% endif %}>{{ model }}</option>
-          {% endfor %}
-        </select>
-      
-        <label>Start Date:</label>
-        <input type="date" name="start_date" value="{{ start_date }}">
-      
-        <label>End Date:</label>
-        <input type="date" name="end_date" value="{{ end_date }}">
-      
-        <button type="submit" name="download" value="excel">Download Excel</button>
-        <button type="submit" name="download" value="csv">Download CSV</button>
-      </form>
-      
-      <hr>
-      <h3>Preview: {{ selected_model }}</h3>
-      <table>
-        <thead>
-          <tr>
-            {% for field in fields %}
-              <th>{{ field }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for obj in data %}
+        <form method="get" id="downloadForm" class="form-v2-form">
+          <div class="form-grid">
+            <div class="form-row">
+              <label for="modelSelect">Select Model:</label>
+              <select name="model" id="modelSelect">
+                {% for model in models %}
+                  <option value="{{ model }}" {% if model == selected_model %}selected{% endif %}>{{ model }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="start_date">Start Date:</label>
+              <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="form-row">
+              <label for="end_date">End Date:</label>
+              <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+          </div>
+          <div class="form-actions-sticky">
+            <button type="submit" name="download" value="excel" class="btn btn-primary">Download Excel</button>
+            <button type="submit" name="download" value="csv" class="btn btn-secondary">Download CSV</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+      <div class="card table-card">
+        <h3>Preview: {{ selected_model }}</h3>
+        <div class="table-wrapper">
+        <table>
+          <thead>
             <tr>
               {% for field in fields %}
-                <td>{{ obj|attr:field }}</td>
+                <th>{{ field }}</th>
               {% endfor %}
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for obj in data %}
+              <tr>
+                {% for field in fields %}
+                  <td>{{ obj|attr:field }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
    
       
     </div>

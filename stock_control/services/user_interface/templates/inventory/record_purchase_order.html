@@ -20,11 +20,12 @@
 
 
 <!-- Main -->
-<div class="dashboard-container" style="display: flex; gap: 2rem; flex-wrap: wrap;">
+<div class="dashboard-container form-v2 two-col w-80 gap-5p">
 
     <!-- Low Stock Items Table -->
     {% if low_stock %}
-    <div class="card table-card" style="flex: 1 1 45%;">
+    <div class="col">
+    <div class="card table-card">
         <h2>Low Stock Products</h2>
         <input type="text" id="searchLowStock" placeholder="Search low stock products..." class="form-control mb-2">
         <div class="table-wrapper">
@@ -57,20 +58,26 @@
             </table>
         </div>
     </div>
+    </div>
     {% endif %}
 
     <!-- Record PO Form -->
-    <div class="card form-card" style="flex: 1 1 45%;">
+    <div class="col">
+    <div class="card form-card">
         <h2>Record a New Purchase Order</h2>
-        <form method="post">
+        <div class="form-body">
+        <form method="post" class="form-v2-form">
             {% csrf_token %}
-
             {{ form.as_p }}
-
-            <button type="submit" class="btn btn-primary">Place Order</button>
+            <div class="form-actions-sticky">
+              <button type="submit" class="btn btn-primary">Place Order</button>
+              <a href="{% url 'inventory:track_purchase_orders' %}" class="btn btn-secondary">Cancel</a>
+            </div>
         </form>
+        </div>
         <br>
         <a href="{% url 'inventory:track_purchase_orders' %}" class="btn btn-secondary">View Purchase Orders</a>
+    </div>
     </div>
 
     

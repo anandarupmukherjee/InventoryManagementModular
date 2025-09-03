@@ -1,34 +1,48 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Add Lot Instance – {{ code }}</title>
-  <style>
-    form label { display:block; margin:8px 0 4px }
-    input[type="text"], input[type="number"] { width: 280px; }
-  </style>
+  <link rel="stylesheet" href="{% static 'inventory/styles.css' %}">
 </head>
 <body>
-  <h2>Add another lot entry for product {{ code }}</h2>
-  <form method="post">
-    {% csrf_token %}
-    <label>Lot number
-      <input type="text" name="lot_number" required>
-    </label>
-    <label>Expiry (YYYY-MM-DD)
-      <input type="text" name="expiry_date">
-    </label>
-    <label>Stock (units)
-      <input type="number" step="0.01" name="stock_units" required>
-    </label>
-    <label>Received at (YYYY-MM-DD HH:MM)
-      <input type="text" name="received_at">
-    </label>
+  <div class="dashboard-container form-v2">
+    <div class="card form-card">
+      <div class="form-body">
+        <h2>Add another lot entry for product {{ code }}</h2>
+        <form method="post" class="form-v2-form">
+          {% csrf_token %}
+          <div class="form-grid">
+            <div class="form-row {% if form_errors.lot_number %}has-error{% endif %}">
+              <label for="lot_number">Lot number</label>
+              <input type="text" id="lot_number" name="lot_number" required value="{{ form_values.lot_number|default:'' }}" class="{% if form_errors.lot_number %}error{% endif %}">
+              {% if form_errors.lot_number %}<div class="error-message">{{ form_errors.lot_number }}</div>{% endif %}
+            </div>
+            <div class="form-row {% if form_errors.expiry_date %}has-error{% endif %}">
+              <label for="expiry_date">Expiry (YYYY-MM-DD)</label>
+              <input type="date" id="expiry_date" name="expiry_date" value="{{ form_values.expiry_date|default:'' }}" class="{% if form_errors.expiry_date %}error{% endif %}">
+              {% if form_errors.expiry_date %}<div class="error-message">{{ form_errors.expiry_date }}</div>{% endif %}
+            </div>
+            <div class="form-row {% if form_errors.stock_units %}has-error{% endif %}">
+              <label for="stock_units">Stock (units)</label>
+              <input type="number" step="0.01" id="stock_units" name="stock_units" required value="{{ form_values.stock_units|default:'' }}" class="{% if form_errors.stock_units %}error{% endif %}">
+              {% if form_errors.stock_units %}<div class="error-message">{{ form_errors.stock_units }}</div>{% endif %}
+            </div>
+            <div class="form-row">
+              <label for="received_at">Received at</label>
+              <input type="datetime-local" id="received_at" name="received_at" step="60">
+              <div class="field-note">Select date and time (24h).</div>
+            </div>
+          </div>
 
-    <div style="margin-top:12px">
-      <button type="submit">Create</button>
-      <a href="{% url 'data_collection_3:product-lots-instances' code=code %}">Cancel</a>
+          <div class="form-actions-sticky">
+            <button type="submit" class="btn btn-primary">Create</button>
+            <a href="{% url 'data_collection_3:product-lots-instances' code=code %}" class="btn btn-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
     </div>
-  </form>
+  </div>
 </body>
 </html>

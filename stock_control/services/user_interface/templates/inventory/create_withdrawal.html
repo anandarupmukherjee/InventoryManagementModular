@@ -25,21 +25,11 @@
 
 
   <!-- Page Container -->
-  <div class="dashboard-container">
+  <div class="dashboard-container form-v2">
     <div class="card form-card">
       <h1>Create Withdrawal</h1>
 
-      <!-- Mode Toggle: Barcode Scanner (default) vs. Manual Entry -->
-      <div class="toggle-mode">
-        <label class="radio-label">
-          <input type="radio" name="mode" value="barcode" checked> Barcode Scanner
-        </label>
-        <label class="radio-label">
-          <input type="radio" name="mode" value="manual"> Manual Entry
-        </label>
-      </div>
-
-      <form method="POST" action="{% url 'data_collection_2:create_withdrawal' %}">
+      <form method="POST" action="{% url 'data_collection_2:create_withdrawal' %}" class="form-v2-form">
         {% csrf_token %}
         {% if form.errors %}
           <div class="form-errors">
@@ -51,133 +41,183 @@
           </div>
         {% endif %}
 
-        
+        <div class="form-body">
+        <!-- Section: Scan / Manual -->
+        <div class="section-divider"><h2>Scan / Manual</h2></div>
+        <!-- Mode Toggle: Barcode Scanner (default) vs. Manual Entry -->
+        <div class="toggle-mode radio-group inline">
+          <label class="radio-pill">
+            <input type="radio" name="mode" value="barcode" checked> Barcode Scanner
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="mode" value="manual"> Manual Entry
+          </label>
+        </div>
+
         <!-- Hidden field for product's units per quantity (used by JS for partial calcs) -->
         <input type="hidden" id="id_units_per_quantity" name="units_per_quantity" value="">
 
         <!-- Barcode Scanner Section (shown by default) -->
-        <div id="barcode-section">
+        <div id="barcode-section" class="section">
           <input type="hidden" id="parsed_product_code_hidden" name="product_code_from_barcode">
 
           <!-- Barcode input -->
-          <label for="id_barcode">Scan Barcode:</label>
-          <input type="text" id="id_barcode" name="barcode" autocomplete="off">
+          <div class="form-grid">
+            <div class="form-row">
+              <label for="id_barcode">Scan Barcode:</label>
+              <input type="text" id="id_barcode" name="barcode" autocomplete="off">
+              <div class="field-note">Scan or paste a barcode; Enter disables auto-submit.</div>
+            </div>
 
           <!-- <input type="text" id="id_barcode" name="barcode" autocomplete="off" onkeydown="return event.key !== 'Enter';"> -->
 
+            <div class="form-row">
+              <label>Product Code:</label>
+              <input type="text" id="parsed_product_code" readonly>
+            </div>
 
-          <label>Product Code:</label>
-          <input type="text" id="parsed_product_code" readonly>
+            <div class="form-row">
+              <label>Lot Number:</label>
+              <input type="text" id="parsed_lot_number" readonly>
+            </div>
 
-          <label>Lot Number:</label>
-          <input type="text" id="parsed_lot_number" readonly>
+            <div class="form-row">
+              <label>Expiry Date:</label>
+              <input type="text" id="parsed_expiry_date" readonly>
+            </div>
 
-          <label>Expiry Date:</label>
-          <input type="text" id="parsed_expiry_date" readonly>
-
-          <label for="id_product_name">Product Name:</label>
-          <input type="text" id="id_product_name" name="product_name" readonly>
+            <div class="form-row">
+              <label for="id_product_name">Product Name:</label>
+              <input type="text" id="id_product_name" name="product_name" readonly>
+            </div>
+          </div>
 
           <!--trying to sort barcode recording submission errors. Manual mode seems to be working fine-->
           <input type="hidden" id="lot_number_field" name="lot_number">
           <input type="hidden" id="expiry_date_field" name="expiry_date">
-
-
 
           <div id="barcode-product-details">
             <p>Stock: <span id="stock-display"></span></p>
             <p>Units per Item: <span id="units-display"></span></p>
           </div>
 
-          <label for="id_location_select_barcode">Location:</label>
-          <select id="id_location_select_barcode" name="location_id">
-            <option value="">Default (Central)</option>
-            {% if locations %}
-              {% for loc in locations %}
-                <option value="{{ loc.id }}">{{ loc.name }}</option>
-              {% endfor %}
-            {% endif %}
-          </select>
+          <div class="form-row">
+            <label for="id_location_select_barcode">Location:</label>
+            <select id="id_location_select_barcode" name="location_id">
+              <option value="">Default (Central)</option>
+              {% if locations %}
+                {% for loc in locations %}
+                  <option value="{{ loc.id }}">{{ loc.name }}</option>
+                {% endfor %}
+              {% endif %}
+            </select>
+          </div>
         </div>
 
 
 
         <!-- Manual Entry Section (hidden by default) -->
-        <div id="manual-section" style="display: none;">
-          <label for="id_product_autocomplete">Search Product:</label>
-          <input type="text" id="id_product_autocomplete" placeholder="Type name or code" autocomplete="off" list="productOptions">
-          <datalist id="productOptions"></datalist>
-          <input type="hidden" id="id_product_dropdown" name="product_dropdown"> <!-- keep backend field name -->
-          <div id="product_suggestions" class="autocomplete-list" style="position: relative;"></div>
+        <div id="manual-section" class="section" style="display: none;">
+          <div class="form-grid">
+            <div class="form-row">
+              <label for="id_product_autocomplete">Search Product:</label>
+              <input type="text" id="id_product_autocomplete" placeholder="Type name or code" autocomplete="off" list="productOptions">
+              <div class="field-note">Type product name or code to search.</div>
+              <datalist id="productOptions"></datalist>
+              <input type="hidden" id="id_product_dropdown" name="product_dropdown"> <!-- keep backend field name -->
+              <div id="product_suggestions" class="autocomplete-list" style="position: relative;"></div>
+            </div>
           
           <!-- NEW: Fetch Details Button
           <button type="button" id="fetch-manual-details" class="btn btn-secondary">Fetch Details</button> -->
+            <div class="form-row">
+              <label for="id_barcode_manual">Barcode (auto-filled):</label>
+              <input type="text" id="id_barcode_manual" name="barcode_manual" readonly>
+            </div>
 
-          <label for="id_barcode_manual">Barcode (auto-filled):</label>
-          <input type="text" id="id_barcode_manual" name="barcode_manual" readonly>
+            <div class="form-row">
+              <label for="id_location_select">Location:</label>
+              <select id="id_location_select" name="location_id">
+                <option value="">Default (Central)</option>
+                {% if locations %}
+                  {% for loc in locations %}
+                    <option value="{{ loc.id }}">{{ loc.name }}</option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </div>
+          </div>
 
-          <div id="manual-product-details">
+          <div id="manual-product-details" class="item-stats">
             <p>Stock: <span id="manual-stock-display"></span></p>
             <p>Units per Item: <span id="manual-units-display"></span></p>
           </div>
-
-          <label for="id_location_select">Location:</label>
-          <select id="id_location_select" name="location_id">
-            <option value="">Default (Central)</option>
-            {% if locations %}
-              {% for loc in locations %}
-                <option value="{{ loc.id }}">{{ loc.name }}</option>
-              {% endfor %}
-            {% endif %}
-          </select>
         </div>
 
         
         <input type="hidden" id="id_units_per_quantity" name="units_per_quantity">
 
-
+        <div class="section-divider"><h2>Item</h2></div>
         <!-- Withdrawal Mode Selection -->
-        <div class="withdrawal-mode-selection">
-          <label>
+        <div class="withdrawal-mode-selection radio-group inline">
+          <label class="radio-pill">
             <input type="radio" name="withdrawal_mode" value="full" checked> Full Item Withdrawal
           </label>
-          <label>
+          <label class="radio-pill">
             <input type="radio" name="withdrawal_mode" value="part"> Part of Item Withdrawal
           </label>
         </div>
 
+        <div class="section-divider"><h2>Withdrawal</h2></div>
         <!-- Full Item Withdrawal Section -->
-        <div id="full_item_section">
-          <label for="id_quantity">Full Items Withdrawal:</label>
-          {{ form.quantity }}  
+        <div id="full_item_section" class="section">
+          <div class="form-row">
+            <label for="id_quantity">Full Items Withdrawal:</label>
+            {{ form.quantity }}
+          </div>
         </div>
 
         <!-- Part Withdrawal Section (hidden by default) -->
-        <div id="part_item_section" style="display: none;">
-          <label for="id_parts_withdrawn">Parts Withdrawn:</label>
-          {{ form.parts_withdrawn }}
-          
-          <label for="id_full_items">Full Items (Computed):</label>
-          <input type="number" id="id_full_items" name="full_items" value="0" readonly>
-
-          <label for="id_parts_remaining">Parts Remaining:</label>
-          <input type="number" id="id_parts_remaining" name="parts_remaining" value="0" readonly>
+        <div id="part_item_section" class="section" style="display: none;">
+          <div class="form-grid">
+            <div class="form-row">
+              <label for="id_parts_withdrawn">Parts Withdrawn:</label>
+              {{ form.parts_withdrawn }}
+            </div>
+            <div class="form-row">
+              <label for="id_full_items">Full Items (Computed):</label>
+              <input type="number" id="id_full_items" name="full_items" value="0" readonly>
+            </div>
+            <div class="form-row">
+              <label for="id_parts_remaining">Parts Remaining:</label>
+              <input type="number" id="id_parts_remaining" name="parts_remaining" value="0" readonly>
+            </div>
+          </div>
         </div>
 
         <!-- Volume-based Section (new) -->
-        <div id="volume-withdrawal-section" style="display: none;">
-          <label for="id_volume_select">Volume to Withdraw (auto-generated increments):</label>
-          <select id="id_volume_select" name="volume_select">
-            <!-- Populated dynamically in scripts.js if product is volume -->
-          </select>
+        <div id="volume-withdrawal-section" class="section" style="display: none;">
+          <div class="form-row">
+            <label for="id_volume_select">Volume to Withdraw (auto-generated increments):</label>
+            <select id="id_volume_select" name="volume_select">
+              <!-- Populated dynamically in scripts.js if product is volume -->
+            </select>
+          </div>
         </div>
 
         <!-- Withdrawal Type (unit/volume) -->
-        <label for="id_withdrawal_type">Withdrawal Type:</label>
-        {{ form.withdrawal_type }}
-        <span id="unit_label">units</span>
-        
-        <button type="submit" class="btn btn-primary">Submit Withdrawal</button>
+        <div class="form-row">
+          <label for="id_withdrawal_type">Withdrawal Type:</label>
+          {{ form.withdrawal_type }}
+          <span id="unit_label" class="field-note">units</span>
+        </div>
+
+        <!-- Sticky action bar -->
+        <div class="form-actions-sticky">
+          <button type="submit" class="btn btn-primary">Save Withdrawal</button>
+          <button type="button" class="btn btn-secondary" onclick="history.back()">Cancel</button>
+        </div>
+        </div>
       </form>
     </div>
   </div>

@@ -18,7 +18,7 @@
 
 
     <!-- Page Container -->
-    <div class="dashboard-container">
+    <div class="dashboard-container w-80">
 
         <!-- Product List Card -->
         <div class="card table-card">
@@ -32,52 +32,53 @@
 
 
             <div class="table-wrapper">
-                <table id="productTable">
+                <table id="productTable" class="product-table">
                     <thead>
                         <tr>
-                            <th>Product Name</th>
-                            <th>Product Code</th>
-                            <th>Current Stock</th>
-                            <th>Full Items in Stock</th>
-                            <th>Remaining Parts</th>
-                            <th>Stock Threshold</th>
-                            <th>Order Lead Times</th>
-                            <th>Supplier</th>
+                            <th class="col-name">Product Name</th>
+                            <th class="col-code nowrap">Product Code</th>
+                            <th class="col-num nowrap text-right">Current Stock</th>
+                            <th class="col-num nowrap text-right">Full Items in Stock</th>
+                            <th class="col-num nowrap text-right">Remaining Parts</th>
+                            <th class="col-num nowrap text-right">Stock Threshold</th>
+                            <th class="nowrap">Order Lead Times</th>
+                            <th class="col-supplier nowrap">Supplier</th>
 
-                            <!-- ✅ NEW: Lot Overview -->
-                            <th>Lots</th>
-                            <th>Earliest Expiry</th>
-                            <th>Last Received</th>
-                            <th>Actions</th>
+                            <!-- ✅ Lots Overview -->
+                            <th class="col-lots nowrap">Lots</th>
+                            <th class="nowrap">Earliest Expiry</th>
+                            <th class="nowrap">Last Received</th>
+                            <th class="nowrap sticky-right">Actions</th>
                         </tr>
                         </thead>
                         <tbody>
                         {% for product in products %}
                             <tr>
-                            <td>{{ product.name }}</td>
-                            <td>{{ product.product_code }}</td>
+                            <td class="col-name"><div class="cell-wrap clamp-2" title="{{ product.name }}">{{ product.name }}</div></td>
+                            <td class="col-code nowrap" title="{{ product.product_code }}">{{ product.product_code }}</td>
 
-                            <td>{{ product.get_full_items_in_stock }}</td>
-                            <td>{{ product.full_items }}</td>
-                            <td>{{ product.remaining_parts }}</td>
-                            <td>{{ product.threshold }}</td>
-                            <td>{{ product.lead_time }}</td>
-                            <td>{{ product.supplier }}</td>
+                            <td class="col-num nowrap text-right">{{ product.get_full_items_in_stock }}</td>
+                            <td class="col-num nowrap text-right">{{ product.full_items }}</td>
+                            <td class="col-num nowrap text-right">{{ product.remaining_parts }}</td>
+                            <td class="col-num nowrap text-right">{{ product.threshold }}</td>
+                            <td class="nowrap">{{ product.lead_time }}</td>
+                            <td class="col-supplier nowrap" title="{{ product.supplier }}">{{ product.supplier }}</td>
 
-                            <!-- ✅ NEW: Lot Overview (shows counts; safe defaults if backend not wired yet) -->
-                            <td>
-                                <span title="Total lot instances">{{ product.lot_instances|default:"0" }}</span>
-                                · <span title="Passed">{{ product.lot_passed|default:"0" }}</span>✔
-                                · <span title="Failed">{{ product.lot_failed|default:"0" }}</span>✖
-                                · <span title="Not tested">{{ product.lot_untested|default:"0" }}</span>…
+                            <!-- ✅ Lots Overview compact -->
+                            <td class="col-lots nowrap">
+                                <span class="lots-line" title="✔ Passed / ✖ Failed / … Not tested">
+                                    {{ product.lot_passed|default:"0" }} <span class="lot-icon lot-ok">✔</span> /
+                                    {{ product.lot_failed|default:"0" }} <span class="lot-icon lot-bad">✖</span> /
+                                    {{ product.lot_untested|default:"0" }} <span class="lot-icon lot-unknown">…</span>
+                                </span>
                             </td>
 
-                            <!-- ✅ NEW: Dates (safe) -->
-                            <td>{% if product.earliest_expiry %}{{ product.earliest_expiry|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-                            <td>{% if product.last_received %}{{ product.last_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+                            <!-- ✅ Dates -->
+                            <td class="nowrap">{% if product.earliest_expiry %}{{ product.earliest_expiry|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                            <td class="nowrap">{% if product.last_received %}{{ product.last_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
 
-                            <!-- ✅ NEW: Quick links to your new namespaced routes -->
-                            <td>
+                            <!-- ✅ Links -->
+                            <td class="nowrap sticky-right">
                                 <a href="{% url 'data_collection_3:product-lots-instances' code=product.product_code %}" target="_blank">View lots</a> |
                                 <a href="{% url 'data_collection_3:product-lots-rollup' code=product.product_code %}" target="_blank">Roll-up</a> |
                                 <a href="{% url 'data_collection_3:create-lot-instance' code=product.product_code %}" target="_blank">Add lot</a>

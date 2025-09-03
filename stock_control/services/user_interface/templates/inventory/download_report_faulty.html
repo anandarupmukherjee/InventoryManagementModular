@@ -69,32 +69,35 @@
 </nav>
 
 <!-- Page -->
-<div class="dashboard-container" style="display: flex; gap: 20px; align-items: flex-start;">
+<div class="dashboard-container form-v2" style="display: flex; gap: 20px; align-items: flex-start;">
 
   <!-- 📄 Report Form -->
   <div class="card form-card" style="flex: 2;">
     <h1>Generate Report</h1>
-    <form method="post" id="report-form">
+    <div class="form-body">
+    <form method="post" id="report-form" class="form-v2-form">
       {% csrf_token %}
 
-      <div class="form-group">
-        <label for="start_date">Start Date:</label>
-        <input type="date" id="start_date" name="start_date" required value="{{ start_date }}">
-
-        <label for="end_date">End Date:</label>
-        <input type="date" id="end_date" name="end_date" required value="{{ end_date }}">
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="start_date">Start Date:</label>
+          <input type="date" id="start_date" name="start_date" required value="{{ start_date }}">
+        </div>
+        <div class="form-row">
+          <label for="end_date">End Date:</label>
+          <input type="date" id="end_date" name="end_date" required value="{{ end_date }}">
+        </div>
+        <div class="form-row">
+          <label for="report_type">Select Model:</label>
+          <select id="report_type" name="report_type">
+            <option value="withdrawals" {% if report_type == 'withdrawals' %}selected{% endif %}>Withdrawals</option>
+            <option value="stock" {% if report_type == 'stock' %}selected{% endif %}>Product Stock</option>
+            <option value="purchase_orders" {% if report_type == 'purchase_orders' %}selected{% endif %}>Purchase Orders</option>
+          </select>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="report_type">Select Model:</label>
-        <select id="report_type" name="report_type">
-          <option value="withdrawals" {% if report_type == 'withdrawals' %}selected{% endif %}>Withdrawals</option>
-          <option value="stock" {% if report_type == 'stock' %}selected{% endif %}>Product Stock</option>
-          <option value="purchase_orders" {% if report_type == 'purchase_orders' %}selected{% endif %}>Purchase Orders</option>
-        </select>
-      </div>
-
-      <div class="form-group">
+      <div class="form-row">
         <label>Fields to Include:</label>
         <div id="field-container">
           {% for field in all_fields %}
@@ -102,15 +105,18 @@
               <label>
                 <input type="checkbox" name="fields" value="{{ field }}" {% if field in selected_fields %}checked{% endif %}>
                 {{ field|capfirst|cut:"_" }}
-              </label>              
+              </label>
             </div>
           {% endfor %}
         </div>
       </div>
 
-      <button type="submit" name="preview" value="1" class="btn btn-secondary" id="preview-btn">Preview Data</button>
-      <button type="submit" name="download" value="1" class="btn btn-primary">Download XLSX</button>
+      <div class="form-actions-sticky">
+        <button type="submit" name="preview" value="1" class="btn btn-secondary" id="preview-btn">Preview Data</button>
+        <button type="submit" name="download" value="1" class="btn btn-primary">Download XLSX</button>
+      </div>
     </form>
+    </div>
   </div>
 
   <!-- 👁️ Preview Table -->

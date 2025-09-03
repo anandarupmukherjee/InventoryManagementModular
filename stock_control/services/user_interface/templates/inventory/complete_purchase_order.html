@@ -15,42 +15,55 @@
     </ul>
   </nav>
 
-  <div class="dashboard-container">
+  <div class="dashboard-container form-v2">
     <div class="card form-card">
       <h2>Complete Purchase Order</h2>
-      <form method="get">
-        <label for="po-barcode">Scan Barcode:</label>
-        <input type="text" name="raw" id="po-barcode" placeholder="Scan barcode..." autofocus>
-        <button type="submit" class="btn">Fetch</button>
+      <div class="form-body">
+      <form method="get" class="form-v2-form">
+        <div class="form-row">
+          <label for="po-barcode">Scan Barcode:</label>
+          <input type="text" name="raw" id="po-barcode" placeholder="Scan barcode..." autofocus>
+        </div>
+        <div class="form-actions-sticky">
+          <button type="submit" class="btn btn-secondary">Fetch</button>
+        </div>
       </form>
 
       <hr>
 
-      <form method="post">
+      <form method="post" class="form-v2-form">
         {% csrf_token %}
         {{ form.non_field_errors }}
 
-        <div>
+        <div class="form-row">
           {{ form.barcode.label_tag }} {{ form.barcode }}
         </div>
 
         <fieldset>
           <legend>Product Info</legend>
-          <div>{{ form.product_code.label_tag }} {{ form.product_code }}</div>
-          <div>{{ form.product_name.label_tag }} {{ form.product_name }}</div>
-          <div>{{ form.lot_number.label_tag }} {{ form.lot_number }}</div>
-          <div>{{ form.expiry_date.label_tag }} {{ form.expiry_date }}</div>
+          <div class="form-grid">
+            <div class="form-row">{{ form.product_code.label_tag }} {{ form.product_code }}</div>
+            <div class="form-row">{{ form.product_name.label_tag }} {{ form.product_name }}</div>
+            <div class="form-row">{{ form.lot_number.label_tag }} {{ form.lot_number }}</div>
+            <div class="form-row">{{ form.expiry_date.label_tag }} {{ form.expiry_date }}</div>
+          </div>
         </fieldset>
 
         <fieldset>
           <legend>Delivery Info</legend>
-          <div>{{ form.quantity_ordered.label_tag }} {{ form.quantity_ordered }}</div>
-          <div>{{ form.expected_delivery.label_tag }} {{ form.expected_delivery }}</div>
-          <div>{{ form.status.label_tag }} {{ form.status }}</div>
+          <div class="form-grid">
+            <div class="form-row">{{ form.quantity_ordered.label_tag }} {{ form.quantity_ordered }}</div>
+            <div class="form-row">{{ form.expected_delivery.label_tag }} {{ form.expected_delivery }}</div>
+            <div class="form-row">{{ form.status.label_tag }} {{ form.status }}</div>
+          </div>
         </fieldset>
 
-        <button type="submit" class="btn btn-primary">Mark as Delivered</button>
+        <div class="form-actions-sticky">
+          <button type="submit" class="btn btn-primary">Mark as Delivered</button>
+          <a href="{% url 'inventory:track_purchase_orders' %}" class="btn btn-secondary">Cancel</a>
+        </div>
       </form>
+      </div>
     </div>
   </div>
 </body>

@@ -14,7 +14,7 @@
 
     {% include "includes/navbar.html" %}
 
-    <div class="dashboard-container">
+    <div class="dashboard-container w-80">
         <!-- Welcome Card -->
         <div class="card">
             <h1>Welcome to the Inventory Dashboard</h1>
@@ -29,46 +29,76 @@
         <div class="dashboard-grid">
 
             <!-- System Summary -->
-            <div class="dashboard-card">
+            <div class="dashboard-card sys-summary-v2">
                 <h2>System Summary</h2>
-                <table class="alert-table">
-                    <tbody>
-                        <tr>
-                            <td>Low Stock Alerts</td>
-                            <td><span class="status-indicator {% if has_low_stock_alerts %}blinking-red{% else %}green{% endif %}"></span></td>
-                        </tr>
-                        <tr>
-                            <td>Expired Lot Alerts</td>
-                            <td><span class="status-indicator {% if has_expired_lot_alerts %}blinking-red{% else %}green{% endif %}"></span></td>
-                        </tr>
-                        <tr>
-                            <td>Delayed Delivery Alerts</td>
-                            <td><span class="status-indicator {% if has_delayed_delivery_alerts %}blinking-red{% else %}green{% endif %}"></span></td>
-                        </tr>
-                        <tr>
-                            <td>Products Missing Threshold</td>
-                            <td><span class="status-indicator {% if has_missing_thresholds %}blinking-red{% else %}green{% endif %}"></span></td>
-                        </tr>
-                        <tr>
-                            <td>Duplicate Product Names</td>
-                            <td>
-                                {% if duplicate_product_names %}
-                                    <ul>
-                                        {% for name in duplicate_product_names %}
-                                            <li>{{ name }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <span class="status-indicator green"></span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Total Users Registered</td>
-                            <td><strong>{{ total_users }}</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="summary-list">
+                  <div class="sum-row">
+                    <div class="sum-label">Low Stock Alerts</div>
+                    <div class="sum-dot"><span class="status-indicator {% if has_low_stock_alerts %}blinking-red{% else %}green{% endif %}"></span></div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Expired Lot Alerts</div>
+                    <div class="sum-dot"><span class="status-indicator {% if has_expired_lot_alerts %}blinking-red{% else %}green{% endif %}"></span></div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Delayed Delivery Alerts</div>
+                    <div class="sum-dot"><span class="status-indicator {% if has_delayed_delivery_alerts %}blinking-red{% else %}green{% endif %}"></span></div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Products Missing Threshold</div>
+                    <div class="sum-dot"><span class="status-indicator {% if has_missing_thresholds %}blinking-red{% else %}green{% endif %}"></span></div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">
+                      Duplicate Product Names
+                      {% if duplicate_product_names %}
+                        <div class="details">
+                          <ul>
+                            {% for name in duplicate_product_names %}
+                              <li>{{ name }}</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="sum-dot"><span class="status-indicator {% if duplicate_product_names %}blinking-red{% else %}green{% endif %}"></span></div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Total Users Registered</div>
+                    <div class="sum-dot"><strong>{{ total_users }}</strong></div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Locations (excl. default)</div>
+                    <div class="sum-dot"><strong>{{ locations_count }}</strong></div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Lots Not Tested (qty>0): {{ lots_not_tested_count }}</div>
+                    <div class="sum-dot">
+                      <span class="status-indicator {% if lots_not_tested_count > 0 %}blinking-red{% else %}green{% endif %}"></span>
+                    </div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Failed Lots: {{ failed_lots_count }}</div>
+                    <div class="sum-dot">
+                      <span class="status-indicator {% if failed_lots_count > 0 %}blinking-red{% else %}green{% endif %}"></span>
+                    </div>
+                  </div>
+
+                  <div class="sum-row">
+                    <div class="sum-label">Locations Mapped to Lots: {{ locations_mapped_count }}/{{ total_lots_count }}</div>
+                    <div class="sum-dot">
+                      <span class="status-indicator {% if unmapped_lots_count > 0 %}blinking-red{% else %}green{% endif %}"></span>
+                    </div>
+                  </div>
+                </div>
             </div>
 
             <!-- Charts -->
