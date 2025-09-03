@@ -27,6 +27,8 @@
             <!-- Search Bar -->
             <!-- Search Bar for Product List -->
             <input type="text" id="searchProduct" class="search-bar" placeholder="Search by name, code, or supplier">
+            <!-- Optional: Barcode Scan input to drive the same search -->
+            <input type="text" id="barcodeScanProduct" class="search-bar" placeholder="Scan barcode here (press Enter)">
 
 
             <div class="table-wrapper">
@@ -96,4 +98,36 @@
     </div>
 
 </body>
+<script>
+// Simple barcode → product code → table filter bridge
+document.addEventListener("DOMContentLoaded", function () {
+  const barcodeInput = document.getElementById("barcodeScanProduct");
+  const searchInput = document.getElementById("searchProduct");
+  const productTable = document.getElementById("productTable");
+  if (!barcodeInput || !searchInput || !productTable) return;
+
+  barcodeInput.addEventListener("keydown", async function (event) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const raw = barcodeInput.value.trim();
+    if (!raw) return;
+
+    try {
+      const res = await fetch(`/data/parse-barcode/?raw=${encodeURIComponent(raw)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to parse barcode");
+
+      const pcode = (data.normalized_product_code || data.code || data.product_code || "").toString();
+      if (pcode) {
+        // Set search value and trigger existing search logic
+        searchInput.value = pcode;
+        searchInput.dispatchEvent(new Event("keyup", { bubbles: true }));
+      }
+    } catch (err) {
+      console.error("Barcode parse error:", err);
+      alert("Could not parse barcode. Please try again.");
+    }
+  });
+});
+</script>
 </html>

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import F
 from .forms import WithdrawalForm, ProductForm, PurchaseOrderForm, AdminUserCreationForm, AdminUserEditForm, ProductItemForm, PurchaseOrderCompletionForm
 from services.data_storage.models import Product, Withdrawal, PurchaseOrder, ProductItem, PurchaseOrderCompletionLog
+from services.data_storage.models_acceptance import LotAcceptanceTest
 from django.contrib.auth.forms import UserCreationForm
 from io import BytesIO
 from django.contrib.auth.models import User
@@ -29,6 +30,7 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing  # ✅ Exponential 
 from django.views.decorators.http import require_GET
 from django.utils.timezone import make_aware
 from django.db.models import Sum, Count
+from django.db.models import Prefetch
 from inventory.access_control import group_required
 
 
@@ -219,11 +221,52 @@ def create_withdrawal(request):
 @login_required
 @group_required(["Inventory Manager", "Leica Staff"])
 def product_list(request):
-    products = Product.objects.all()
+    # Prefetch items and their acceptance tests for efficient per-product aggregation
+    products = (
+        Product.objects
+        .prefetch_related(
+            Prefetch(
+                "items",
+                queryset=ProductItem.objects.prefetch_related(
+                    Prefetch("acceptance_tests", queryset=LotAcceptanceTest.objects.order_by("-created_at"))
+                )
+            )
+        )
+        .all()
+    )
     for product in products:
         product.full_items = product.get_full_items_in_stock()
         product.remaining_parts = product.get_remaining_parts()
         product.total_stock = sum(item.current_stock for item in product.items.all())
+
+        items = list(product.items.all())
+        product.lot_instances = len(items)
+
+        # Earliest expiry across all lots for this product (None if no items)
+        product.earliest_expiry = None
+        if items:
+            expiries = [i.expiry_date for i in items if getattr(i, "expiry_date", None)]
+            product.earliest_expiry = min(expiries) if expiries else None
+
+        # Count latest acceptance status per lot instance
+        passed = failed = untested = 0
+        for item in items:
+            tests = list(getattr(item, "acceptance_tests", []).all()) if hasattr(item, "acceptance_tests") else []
+            last_test = tests[0] if tests else None
+            if not last_test:
+                untested += 1
+            else:
+                if getattr(last_test, "tested", False):
+                    if getattr(last_test, "passed", False):
+                        passed += 1
+                    else:
+                        failed += 1
+                else:
+                    untested += 1
+
+        product.lot_passed = passed
+        product.lot_failed = failed
+        product.lot_untested = untested
 
     return render(request, 'inventory/product_list.html', {
         'products': products
@@ -421,6 +464,5 @@ def mark_order_delivered(request, order_id):
         purchase_order.status = 'Delivered'
         purchase_order.save()
     return redirect('inventory:track_purchase_orders')
-
 
 

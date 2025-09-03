@@ -113,7 +113,7 @@
             <tbody>
               {% for p in products %}
                 {% for item in p.items.all %}
-                  {% with item_date=item.expiry_date|stringformat:"Y-m-d" %}
+                  {% with item_date=item.expiry_date|date:"Y-m-d" %}
                     {% if item.expiry_date and item_date <= today_str %}
                       <tr class="expired-row">
                     {% else %}
@@ -122,7 +122,7 @@
                   {% endwith %}
 
                     {# Delete button for expired lots (unchanged) #}
-                    {% with item_date=item.expiry_date|stringformat:"Y-m-d" %}
+                    {% with item_date=item.expiry_date|date:"Y-m-d" %}
                       {% if item.expiry_date and item_date <= today_str %}
                         <td>
                           <form method="POST" action="{% url 'data_collection_1:delete_lot' item.id %}" onsubmit="return confirm('Are you sure you want to discard this expired lot?');">

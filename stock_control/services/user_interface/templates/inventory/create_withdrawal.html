@@ -94,13 +94,11 @@
 
         <!-- Manual Entry Section (hidden by default) -->
         <div id="manual-section" style="display: none;">
-          <label for="id_product_dropdown">Select Product:</label>
-          <select id="id_product_dropdown" name="product_dropdown">
-            <option value="">-- Select Product --</option>
-            {% for p in products %}
-              <option value="{{ p.id }}">{{ p.name }}</option>
-            {% endfor %}
-          </select>
+          <label for="id_product_autocomplete">Search Product:</label>
+          <input type="text" id="id_product_autocomplete" placeholder="Type name or code" autocomplete="off" list="productOptions">
+          <datalist id="productOptions"></datalist>
+          <input type="hidden" id="id_product_dropdown" name="product_dropdown"> <!-- keep backend field name -->
+          <div id="product_suggestions" class="autocomplete-list" style="position: relative;"></div>
           
           <!-- NEW: Fetch Details Button
           <button type="button" id="fetch-manual-details" class="btn btn-secondary">Fetch Details</button> -->
@@ -163,6 +161,13 @@
       </form>
     </div>
   </div>
+  <style>
+  .autocomplete-list { max-height: 220px; overflow-y: auto; }
+  .autocomplete-list ul { list-style: none; margin: 4px 0 0; padding: 0; position: absolute; background: #fff; border: 1px solid #ddd; width: 100%; z-index: 10; }
+  .autocomplete-list li { padding: 6px 8px; cursor: pointer; }
+  .autocomplete-list li:hover, .autocomplete-list li.active { background: #f0f6ff; }
+  .autocomplete-empty { padding: 6px 8px; color: #666; font-size: 0.9em; }
+  </style>
+  <script src="{% static 'inventory/product_autocomplete.js' %}"></script>
 </body>
 </html>
-
