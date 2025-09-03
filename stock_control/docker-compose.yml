@@ -1,0 +1,50 @@
+# # version: '3.8'
+
+# services:
+#   web:
+#     build: .
+#     entrypoint: ["/code/entrypoint.sh"]
+#     volumes:
+#       - .:/code
+#       - static_volume:/code/staticfiles
+#     ports:
+#       - "8000:8000"
+#     restart: unless-stopped
+#     env_file:
+#       - django_secret_key
+#     environment:
+#       - DJANGO_STATICFILES_STORAGE=django.contrib.staticfiles.storage.ManifestStaticFilesStorage
+
+# volumes:
+#   static_volume:
+
+# version: '3.8'
+
+
+services:
+  web:
+    build: .
+    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/code
+    expose:
+      - "8000"               # Use 'expose' instead of 'ports' since only nginx needs to access it
+    restart: unless-stopped
+    env_file:
+      - django_secret_key
+    networks:
+      - backend
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"               # This maps port 80 of host to container
+    volumes:
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+    networks:
+      - backend
+
+networks:
+  backend:
