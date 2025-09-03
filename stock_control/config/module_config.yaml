@@ -4,4 +4,5 @@ enabled_modules:
   - enable_user_interface
   - enable_stock_admin
   - enable_data_collection
-
+  - enable_data_collection_2
+  - enable_data_collection_3
