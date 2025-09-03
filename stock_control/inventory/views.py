@@ -312,13 +312,19 @@ def record_purchase_order(request):
     else:
         form = PurchaseOrderForm(initial=initial)
 
-    # 🧮 Recalculate low stock again
+    # 🧮 Recalculate low stock again, excluding products with an outstanding PO
     products = Product.objects.all()
     low_stock = []
     for p in products:
         total_stock = sum(item.current_stock for item in p.items.all())
         if total_stock < p.threshold:
-            low_stock.append(p)
+            # Exclude if an order is already placed and pending (status Ordered/Delayed)
+            has_pending_po = PurchaseOrder.objects.filter(
+                product_code=p.product_code,
+                status__in=["Ordered", "Delayed"],
+            ).exists()
+            if not has_pending_po:
+                low_stock.append(p)
 
     return render(request, 'inventory/record_purchase_order.html', {
         'form': form,
@@ -342,42 +348,35 @@ def track_withdrawals(request):
 @login_required
 @group_required(["Inventory Manager", "Leica Staff"])
 def track_purchase_orders(request):
-    # Load all POs
-    orders = PurchaseOrder.objects.select_related('product_item', 'ordered_by').order_by('-order_date')
+    # Load POs, excluding delivered orders older than 7 days
+    seven_days_ago = now() - timedelta(days=7)
+    orders = (
+        PurchaseOrder.objects
+        .select_related('product_item', 'ordered_by')
+        .filter(
+            Q(status__in=["Ordered", "Delayed"]) |
+            Q(status="Delivered", delivered_at__gte=seven_days_ago)
+        )
+        .order_by('-order_date')
+    )
     for order in orders:
         if order.expected_delivery < now() and order.status == "Ordered":
             order.status = "Delayed"
             order.save()
 
-    # Handle GET barcode scan (initialise form with parsed data)
+    # Initialise form (prefilled by JS from table selection)
     initial = {}
-    if request.method == "GET" and "raw" in request.GET:
-        raw = request.GET.get("raw", "")
-        if raw:
-            response = _parse_barcode(request)
-            if response.status_code == 200:
-                data = json.loads(response.content)
-                product = Product.objects.filter(product_code=data.get("product_code")).first()
-                initial.update({
-                    "barcode": raw,
-                    "product_code": data.get("product_code", ""),
-                    "product_name": product.name if product else "",
-                    "lot_number": data.get("lot_number", ""),
-                    "expiry_date": datetime.datetime.strptime(
-                        data.get("expiry_date", "01.01.1970"), "%d.%m.%Y"
-                    ).date() if data.get("expiry_date") else None,
-                })
 
     # Handle PO form submission
     if request.method == "POST":
         form = PurchaseOrderCompletionForm(request.POST)
         if form.is_valid():
-            barcode = form.cleaned_data["barcode"]
             product_code = form.cleaned_data["product_code"]
             product_name = form.cleaned_data["product_name"]
-            lot_number = form.cleaned_data["lot_number"]
-            expiry_date = form.cleaned_data["expiry_date"]
-            qty = form.cleaned_data["quantity_ordered"]
+            lot_number = form.cleaned_data.get("lot_number")
+            expiry_date = form.cleaned_data.get("expiry_date")
+            qty = form.cleaned_data.get("quantity_ordered") or 0
+            lot_mode = request.POST.get("lot_mode", "single")
 
             # Validate product
             product = Product.objects.filter(product_code=product_code).first()
@@ -388,46 +387,85 @@ def track_purchase_orders(request):
                     "completion_form": form
                 })
 
-            # Get or create matching ProductItem
-            item, created = ProductItem.objects.get_or_create(
-                product=product,
-                lot_number=lot_number,
-                expiry_date=expiry_date,
-                defaults={"current_stock": 0}
-            )
+            total_received = 0
+            touched_items = []
+            if lot_mode == "multiple":
+                lot_nums = request.POST.getlist("multi_lot_number[]")
+                exp_dates = request.POST.getlist("multi_expiry_date[]")
+                qtys = request.POST.getlist("multi_quantity[]")
+                for ln, ed, q in zip(lot_nums, exp_dates, qtys):
+                    if not ln or not q:
+                        continue
+                    try:
+                        q_int = int(q)
+                    except ValueError:
+                        q_int = 0
+                    ed_obj = None
+                    if ed:
+                        try:
+                            ed_obj = datetime.datetime.strptime(ed, "%Y-%m-%d").date()
+                        except ValueError:
+                            ed_obj = None
+                    item, _ = ProductItem.objects.get_or_create(
+                        product=product,
+                        lot_number=ln,
+                        expiry_date=ed_obj,
+                        defaults={"current_stock": 0}
+                    )
+                    item.current_stock = F("current_stock") + q_int
+                    item.save()
+                    item.refresh_from_db()
+                    touched_items.append(item)
+                    total_received += q_int
+                # Server-side validation: totals must equal ordered qty (if provided)
+                try:
+                    ordered_qty = int(request.POST.get("quantity_ordered") or 0)
+                except ValueError:
+                    ordered_qty = 0
+                if ordered_qty and total_received != ordered_qty:
+                    error_msg = f"Total across lots ({total_received}) does not match ordered quantity ({ordered_qty})."
+                    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                        return JsonResponse({"error": error_msg}, status=400)
+                    form.add_error(None, error_msg)
+                    return render(request, "inventory/track_purchase_orders.html", {
+                        "purchase_orders": orders,
+                        "completion_form": form
+                    })
+            else:
+                item, _ = ProductItem.objects.get_or_create(
+                    product=product,
+                    lot_number=lot_number or "",
+                    expiry_date=expiry_date,
+                    defaults={"current_stock": 0}
+                )
+                item.current_stock = F("current_stock") + int(qty or 0)
+                item.save()
+                item.refresh_from_db()
+                touched_items.append(item)
+                total_received = int(qty or 0)
 
-            # Update stock
-            item.current_stock = F("current_stock") + qty
-            item.save()
-            print("Trying to find PO for:", item.id, product_code, lot_number, expiry_date)
-            matching = PurchaseOrder.objects.filter(product_item=item, status="Ordered")
-            print("Matching POs:", matching)
-
-            item.refresh_from_db()  # <-- ensures correct values in memory
-
-            # Update matching PurchaseOrder
-            # po = PurchaseOrder.objects.filter(product_item=item, status="Ordered").first()
+            # Update matching PurchaseOrder (by product) to Delivered
             po = PurchaseOrder.objects.filter(
-                Q(product_item=item),
+                Q(product_code=product_code),
                 Q(status="Ordered") | Q(status="Delayed")
-            ).first()
+            ).order_by("-order_date").first()
 
             if po:
-                print("✅ PO found and will be updated:", po.id)
                 po.status = "Delivered"
                 po.delivered_at = timezone.now()
                 po.save()
+                first_item = touched_items[0]
                 PurchaseOrderCompletionLog.objects.create(
                     purchase_order=po,
                     product_code=po.product_code,
                     product_name=po.product_name,
-                    lot_number=po.lot_number,
-                    expiry_date=po.expiry_date,
-                    quantity_ordered=po.quantity_ordered,
+                    lot_number=first_item.lot_number,
+                    expiry_date=first_item.expiry_date,
+                    quantity_ordered=total_received or po.quantity_ordered,
                     order_date=po.order_date,
                     ordered_by=po.ordered_by,
                     completed_by=request.user,
-                    remarks="Completed via form"
+                    remarks=("Multiple lots received" if lot_mode == "multiple" else "Completed via form")
                 )
 
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
@@ -464,5 +502,3 @@ def mark_order_delivered(request, order_id):
         purchase_order.status = 'Delivered'
         purchase_order.save()
     return redirect('inventory:track_purchase_orders')
-
-

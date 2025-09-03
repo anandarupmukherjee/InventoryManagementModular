@@ -92,12 +92,18 @@ class PurchaseOrderForm(forms.ModelForm):
         required=False,
         widget=forms.TextInput(attrs={"readonly": "readonly", "id": "order-product-code"})
     )
+    po_reference = forms.CharField(
+        required=False,
+        label="PO Reference",
+        widget=forms.TextInput(attrs={"placeholder": "Enter PO reference", "id": "order-po-reference"})
+    )
 
     class Meta:
         model = PurchaseOrder
         fields = [
             'product_name',
             'product_code',
+            'po_reference',
             'quantity_ordered',
             'expected_delivery',
             'status',
@@ -112,20 +118,22 @@ class PurchaseOrderForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['product_name'].label = "Product Name"
         self.fields['product_code'].label = "Product Code"
+        self.fields['po_reference'].label = "PO Reference"
         if not self.initial.get('expected_delivery'):
             self.initial['expected_delivery'] = now().strftime('%Y-%m-%dT%H:%M')
 
 
 
 class PurchaseOrderCompletionForm(forms.Form):
-    barcode = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Scan or enter barcode'}))
-    product_code = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
-    product_name = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
-    lot_number = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
-    expiry_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
-    quantity_ordered = forms.IntegerField(widget=forms.NumberInput(attrs={'class': 'form-control'}))
-    # expected_delivery = forms.DateTimeField(widget=forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}))
-    status = forms.ChoiceField(choices=[('Delivered', 'Delivered')], widget=forms.Select(attrs={'class': 'form-control'}))
+    po_reference = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'id_po_reference', 'readonly': 'readonly'}))
+    # Removed barcode field per new flow
+    product_code = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'id_product_code'}))
+    product_name = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'id_product_name'}))
+    # Single-lot fields (optional; used when lot_mode=single)
+    lot_number = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'id_lot_number'}))
+    expiry_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control', 'id': 'id_expiry_date'}))
+    quantity_ordered = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_quantity_ordered'}))
+    status = forms.ChoiceField(choices=[('Delivered', 'Delivered')], widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_status'}))
 
 
 

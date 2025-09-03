@@ -27,6 +27,7 @@
           <tr>
             <th>Product</th>
             <th>Product Code</th>
+            <th>PO Ref</th>
             <th>Quantity</th>
             <th>Order Date</th>
             <th>Status</th>
@@ -39,11 +40,13 @@
               data-product-code="{{ order.product_code }}"
               data-product-name="{{ order.product_name }}"
               data-quantity="{{ order.quantity_ordered }}"
+              data-po-ref="{{ order.po_reference|default:'' }}"
               data-expected="{{ order.expected_delivery|date:'Y-m-d\\TH:i' }}"
               data-delivered-at="{% if order.status == 'Delivered' %}{{ order.delivered_at|date:'c' }}{% endif %}"
             >
               <td>{{ order.product_name }}</td>
               <td>{{ order.product_code }}</td>
+              <td>{% if order.po_reference %}{{ order.po_reference }}{% else %}—{% endif %}</td>
               <td>{{ order.quantity_ordered }}</td>
               <td>{{ order.order_date|date:'Y-m-d H:i' }}</td>
               <td>
@@ -61,6 +64,7 @@
                         data-product-code="{{ order.product_code }}"
                         data-product-name="{{ order.product_name }}"
                         data-quantity="{{ order.quantity_ordered }}"
+                        data-po-ref="{{ order.po_reference|default:'' }}"
                         data-expected="{{ order.expected_delivery|date:'Y-m-d\\TH:i' }}">
                   Complete
                 </button>
@@ -79,31 +83,19 @@
     <!-- Complete PO Form -->
 <div class="card form-card" style="flex: 1;">
   <h2>Complete Purchase Order</h2>
-
-  <!-- Barcode Scan Form -->
-  <form method="get" id="barcode-fetch-form">
-    <label for="po-barcode">Scan Barcode:</label>
-    <input type="text" name="raw" id="po-barcode" placeholder="Scan barcode..." class="form-control">
-    <button type="submit" class="btn btn-secondary">Fetch</button>
-  </form>
-
-  <hr>
-
   <!-- Completion Submission Form -->
   <form method="post" id="po-completion-form">
     {% csrf_token %}
     {{ completion_form.non_field_errors }}
 
-    <div class="mb-3">
-      {{ completion_form.barcode.label_tag }}
-      {{ completion_form.barcode|add_class:"form-control" }}
-    </div>
-    <!-- {{ completion_form.barcode.as_hidden }} -->
-
 
     <fieldset>
       <legend>Product Info</legend>
 
+      <div class="mb-2">
+        <label for="id_po_reference">PO Reference</label>
+        {{ completion_form.po_reference|add_class:"form-control" }}
+      </div>
       <div class="mb-2">
         {{ completion_form.product_code.label_tag }}
         {{ completion_form.product_code|add_class:"form-control" }}
@@ -112,20 +104,42 @@
         {{ completion_form.product_name.label_tag }}
         {{ completion_form.product_name|add_class:"form-control" }}
       </div>
+      <!-- Lot mode toggle -->
       <div class="mb-2">
-        {{ completion_form.lot_number.label_tag }}
-        {{ completion_form.lot_number|add_class:"form-control" }}
+        <label><input type="radio" name="lot_mode" value="single" checked> Single lot</label>
+        <label style="margin-left: 1rem;"><input type="radio" name="lot_mode" value="multiple"> Multiple lots</label>
       </div>
-      <div class="mb-2">
-        {{ completion_form.expiry_date.label_tag }}
-        {{ completion_form.expiry_date|add_class:"form-control" }}
+
+      <!-- Single lot section -->
+      <div id="single-lot-section">
+        <div class="mb-2">
+          {{ completion_form.lot_number.label_tag }}
+          {{ completion_form.lot_number|add_class:"form-control" }}
+        </div>
+        <div class="mb-2">
+          {{ completion_form.expiry_date.label_tag }}
+          {{ completion_form.expiry_date|add_class:"form-control" }}
+        </div>
+      </div>
+
+      <!-- Multiple lots section -->
+      <div id="multi-lot-section" style="display:none;">
+        <div class="mb-2" style="font-size: 0.9em; color: #333;">
+          Ordered Qty: <strong id="ordered_qty_hint">0</strong>
+          · Total received across lots: <strong id="multi_total_qty">0</strong>
+          <span id="multi_qty_warning" style="margin-left: 6px;"></span>
+        </div>
+        <div class="mb-2">
+          <button type="button" id="add_lot_row" class="btn btn-secondary btn-small">Add Row</button>
+        </div>
+        <div id="lots_container"></div>
       </div>
     </fieldset>
 
     <fieldset>
       <legend>Delivery Info</legend>
 
-      <div class="mb-2">
+      <div class="mb-2" id="single-qty-wrap">
         {{ completion_form.quantity_ordered.label_tag }}
         {{ completion_form.quantity_ordered|add_class:"form-control" }}
       </div>

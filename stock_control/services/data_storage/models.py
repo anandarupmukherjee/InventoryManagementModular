@@ -125,6 +125,7 @@ class PurchaseOrder(models.Model):
     expected_delivery = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=20, default='Ordered')
     delivered_at = models.DateTimeField(null=True, blank=True)
+    po_reference = models.CharField(max_length=100, blank=True, null=True, default="")
 
     product_code = models.CharField(max_length=50, default="N/A")
     product_name = models.CharField(max_length=100, default="Unnamed Product")
@@ -148,7 +149,8 @@ class PurchaseOrder(models.Model):
             self.save()
 
     def __str__(self):
-        return f"PO-{self.id} for {self.product_name} (Lot {self.lot_number})"
+        ref = f" [{self.po_reference}]" if self.po_reference else ""
+        return f"PO-{self.id}{ref} for {self.product_name} (Lot {self.lot_number})"
 
 
 
