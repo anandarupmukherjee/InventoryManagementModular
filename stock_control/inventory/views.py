@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import F
 from .forms import WithdrawalForm, ProductForm, PurchaseOrderForm, AdminUserCreationForm, AdminUserEditForm, ProductItemForm, PurchaseOrderCompletionForm
-from services.data_storage.models import Product, Withdrawal, PurchaseOrder, ProductItem, PurchaseOrderCompletionLog, Location
+from services.data_storage.models import Product, Withdrawal, PurchaseOrder, ProductItem, PurchaseOrderCompletionLog, Location, StockRegistrationLog
 from services.data_storage.models_acceptance import LotAcceptanceTest
 from django.contrib.auth.forms import UserCreationForm
 from io import BytesIO
@@ -29,7 +29,7 @@ import pandas as pd  # ✅ Import Pandas for time series processing
 from statsmodels.tsa.holtwinters import ExponentialSmoothing  # ✅ Exponential Smoothing for Forecasting
 from django.views.decorators.http import require_GET
 from django.utils.timezone import make_aware
-from django.db.models import Sum, Count, Exists, OuterRef
+from django.db.models import Sum, Count, Exists, OuterRef, Max
 from django.db.models import Prefetch
 from inventory.access_control import group_required
 
@@ -118,10 +118,16 @@ def inventory_dashboard(request):
     context = get_dashboard_data()
 
     # 1. Low stock alerts
-    low_stock_alerts = [
-        p for p in Product.objects.prefetch_related("items").all()
-        if sum(item.current_stock for item in p.items.all()) < p.threshold
-    ]
+    low_stock_alerts = []
+    for product in Product.objects.prefetch_related("items").all():
+        total_stock = sum(item.current_stock for item in product.items.all())
+        if total_stock < product.threshold:
+            has_pending_po = PurchaseOrder.objects.filter(
+                product_code=product.product_code,
+                status__in=["Ordered", "Delayed"],
+            ).exists()
+            if not has_pending_po:
+                low_stock_alerts.append(product)
     has_low_stock_alerts = len(low_stock_alerts) > 0
 
     # 2. Expired lots
@@ -238,10 +244,10 @@ def create_withdrawal(request):
 
 
 
+
 @login_required
 @group_required(["Inventory Manager", "Leica Staff"])
 def product_list(request):
-    # Prefetch items and their acceptance tests for efficient per-product aggregation
     products = (
         Product.objects
         .prefetch_related(
@@ -254,6 +260,18 @@ def product_list(request):
         )
         .all()
     )
+
+    product_codes = [p.product_code for p in products]
+    logs_by_product = {
+        entry['product_code']: entry
+        for entry in (
+            StockRegistrationLog.objects
+            .filter(product_code__in=product_codes)
+            .values('product_code')
+            .annotate(last_delivery=Max('delivery_datetime'), last_timestamp=Max('timestamp'))
+        )
+    }
+
     for product in products:
         product.full_items = product.get_full_items_in_stock()
         product.remaining_parts = product.get_remaining_parts()
@@ -262,13 +280,11 @@ def product_list(request):
         items = list(product.items.all())
         product.lot_instances = len(items)
 
-        # Earliest expiry across all lots for this product (None if no items)
         product.earliest_expiry = None
         if items:
             expiries = [i.expiry_date for i in items if getattr(i, "expiry_date", None)]
             product.earliest_expiry = min(expiries) if expiries else None
 
-        # Count latest acceptance status per lot instance
         passed = failed = untested = 0
         for item in items:
             tests = list(getattr(item, "acceptance_tests", []).all()) if hasattr(item, "acceptance_tests") else []
@@ -288,9 +304,77 @@ def product_list(request):
         product.lot_failed = failed
         product.lot_untested = untested
 
+        log_entry = logs_by_product.get(product.product_code)
+        if log_entry:
+            product.last_received = log_entry['last_delivery'] or log_entry['last_timestamp']
+        else:
+            product.last_received = None
+
     return render(request, 'inventory/product_list.html', {
         'products': products
     })
+
+
+@login_required
+@group_required(["Inventory Manager", "Leica Staff"])
+def low_stock_lots(request):
+    products = Product.objects.prefetch_related('items', 'items__location').all()
+    rows = []
+
+    for product in products:
+        total_stock = sum(item.current_stock for item in product.items.all())
+        if total_stock >= product.threshold:
+            continue
+        has_pending_po = PurchaseOrder.objects.filter(
+            product_code=product.product_code,
+            status__in=["Ordered", "Delayed"],
+        ).exists()
+        if has_pending_po:
+            continue
+
+        items = list(product.items.all())
+        if items:
+            for item in items:
+                rows.append({
+                    'product': product,
+                    'lot_number': item.lot_number,
+                    'lot_stock': item.current_stock,
+                    'total_stock': total_stock,
+                    'threshold': product.threshold,
+                    'expiry_date': item.expiry_date,
+                    'location': getattr(item, 'location', None),
+                })
+        else:
+            rows.append({
+                'product': product,
+                'lot_number': '—',
+                'lot_stock': 0,
+                'total_stock': total_stock,
+                'threshold': product.threshold,
+                'expiry_date': None,
+                'location': None,
+            })
+
+    rows.sort(key=lambda r: (r['product'].name, r['expiry_date'] or datetime.date.max))
+
+    return render(request, 'inventory/low_stock_lots.html', {
+        'rows': rows,
+    })
+
+
+@login_required
+@group_required(["Inventory Manager", "Leica Staff"])
+def expired_lots(request):
+    today = timezone.now().date()
+    items = (ProductItem.objects
+             .filter(expiry_date__isnull=False, expiry_date__lte=today)
+             .select_related('product', 'location')
+             .order_by('expiry_date'))
+    return render(request, 'inventory/expired_lots.html', {
+        'items': items,
+        'today': today,
+    })
+
 
 
 # ✅ Updated view function
@@ -352,27 +436,6 @@ def record_purchase_order(request):
     })
 
 
-
-
-@login_required
-@user_passes_test(is_admin, login_url='inventory:dashboard')
-def track_withdrawals(request):
-    location_id = request.GET.get('location_id') or ''
-    withdrawals = Withdrawal.objects.select_related('product_item', 'user', 'product_item__location').order_by('-timestamp')
-    if location_id:
-        try:
-            withdrawals = withdrawals.filter(product_item__location_id=int(location_id))
-        except (TypeError, ValueError):
-            pass
-    for w in withdrawals:
-        w.full_items = w.get_full_items_withdrawn()
-        w.partial_items = w.get_partial_items_withdrawn()
-    locations = Location.objects.all().order_by('name')
-    return render(request, 'inventory/track_withdrawals.html', {
-        'withdrawals': withdrawals,
-        'locations': locations,
-        'selected_location_id': str(location_id)
-    })
 
 
 

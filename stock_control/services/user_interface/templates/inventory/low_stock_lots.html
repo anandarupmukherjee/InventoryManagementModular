@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Low Stock Lots</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+  <script src="{% static 'inventory/table_search.js' %}" defer></script>
+</head>
+<body>
+  {% include "includes/navbar.html" %}
+
+  <div class="dashboard-container form-v2 w-80">
+    <div class="card table-card">
+      <h2>Low Stock Lots</h2>
+      <p class="subtitle">Showing lots for products currently below their threshold and without an active purchase order.</p>
+
+      <input type="text" id="searchLowStockLots" class="search-bar" placeholder="Search by product, lot, or location">
+
+      <div class="table-wrapper">
+        <table id="lowStockLotsTable">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Lot Number</th>
+              <th>Lot Stock</th>
+              <th>Total Product Stock</th>
+              <th>Threshold</th>
+              <th>Expiry</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{{ row.product.name }} ({{ row.product.product_code }})</td>
+                <td>{{ row.lot_number }}</td>
+                <td>{{ row.lot_stock }}</td>
+                <td>{{ row.total_stock }}</td>
+                <td>{{ row.threshold }}</td>
+                <td>{% if row.expiry_date %}{{ row.expiry_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                <td>{% if row.location %}{{ row.location.name }}{% else %}Central{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="7">No products are currently below their thresholds.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

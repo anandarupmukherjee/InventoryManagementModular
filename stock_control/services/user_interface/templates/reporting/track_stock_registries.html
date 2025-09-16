@@ -1,0 +1,88 @@
+{% load static %}
+{% load feature_flags %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track Stock Registrations</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+  <script src="{% static 'inventory/table_search.js' %}" defer></script>
+</head>
+<body>
+    {% include "includes/navbar.html" %}
+
+  <div class="dashboard-container form-v2">
+    <div class="card table-card">
+      <h2>Stock Registration History</h2>
+
+      <input type="text" id="searchRegistrations" class="search-bar" placeholder="Search by product, code, or user">
+
+      <form method="get" class="form-v2-form" style="margin: 10px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <div class="form-row" style="display: contents; gap: 10px; align-items: center;">
+          <label for="locationFilter">Filter by Location:</label>
+          <select id="locationFilter" name="location_id" onchange="this.form.submit()" style="max-width: 240px;">
+            <option value="">All Locations</option>
+            {% for loc in locations %}
+              <option value="{{ loc.id }}" {% if selected_location_id == loc.id|stringformat:'s' %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+          </select>
+
+          <label for="userFilter">Filter by User:</label>
+          <select id="userFilter" name="user_id" onchange="this.form.submit()" style="max-width: 240px;">
+            <option value="">All Users</option>
+            {% for user in users %}
+              <option value="{{ user.id }}" {% if selected_user_id == user.id|stringformat:'s' %}selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>
+            {% endfor %}
+          </select>
+
+          {% if selected_location_id or selected_user_id %}
+            <a href="?" class="btn btn-small">Clear</a>
+          {% endif %}
+        </div>
+      </form>
+
+      <div class="table-wrapper">
+        <table id="registrationTable">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Delivery Date</th>
+              <th>Product</th>
+              <th>Location</th>
+              <th>Quantity Added</th>
+              <th>Barcode</th>
+              <th>User</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in registrations %}
+            <tr>
+              <td>{{ entry.timestamp }}</td>
+              <td>{% if entry.delivery_datetime %}{{ entry.delivery_datetime }}{% else %}—{% endif %}</td>
+              <td>{{ entry.product_name|default:"N/A" }} ({{ entry.product_code|default:"N/A" }})</td>
+              <td>
+                {% if entry.location %}
+                  {{ entry.location.name }}
+                {% elif entry.product_item and entry.product_item.location %}
+                  {{ entry.product_item.location.name }}
+                {% else %}Central{% endif %}
+              </td>
+              <td>{{ entry.quantity }}</td>
+              <td>{{ entry.barcode|default:"N/A" }}</td>
+              <td>{{ entry.user.username|default:"Anonymous" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7">No stock registrations recorded.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -143,6 +143,41 @@ class Withdrawal(models.Model):
         return f"{self.product_name} withdrawn on {self.timestamp}"
 
 
+class StockRegistrationLog(models.Model):
+    product_item = models.ForeignKey('ProductItem', on_delete=models.SET_NULL, null=True, blank=True)
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('1.00'),
+        help_text="Quantity registered from this scan"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    barcode = models.CharField(max_length=128, blank=True, null=True)
+    delivery_datetime = models.DateTimeField(null=True, blank=True)
+    location = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, blank=True, related_name='stock_registrations')
+
+    product_code = models.CharField(max_length=50, default="N/A")
+    product_name = models.CharField(max_length=100, default="Unnamed Product")
+    lot_number = models.CharField(max_length=50, default="UNKNOWN")
+    expiry_date = models.DateField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.product_item:
+            product = self.product_item.product
+            self.product_code = product.product_code
+            self.product_name = product.name
+            self.lot_number = self.product_item.lot_number
+            self.expiry_date = self.product_item.expiry_date
+            if self.location is None:
+                self.location = getattr(self.product_item, 'location', None)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Registration for {self.product_name} on {self.timestamp}"
+
+
+
 class PurchaseOrder(models.Model):
     product_item = models.ForeignKey('ProductItem', on_delete=models.SET_NULL, null=True, blank=True)
     quantity_ordered = models.PositiveIntegerField(default=1)

@@ -48,11 +48,19 @@
   <ul>
     <li><a href="{% url 'inventory:dashboard' %}">Dashboard</a></li>
     <li><a href="{% url 'inventory:create_withdrawal' %}">User Withdrawal</a></li>
-    <li><a href="{% url 'inventory:product_list' %}" class="active">Product List</a></li>
+    <li class="dropdown">
+      <a href="#" class="dropbtn">Product Overview</a>
+      <div class="dropdown-content">
+        <a href="{% url 'inventory:product_list' %}">Current Product List</a>
+        <a href="{% url 'inventory:low_stock_lots' %}">Low Stock Lots</a>
+        <a href="{% url 'inventory:expired_lots' %}">Expired Lots</a>
+      </div>
+    </li>
     {% if user.is_staff %}
       <li><a href="/admin/">Database Admin Panel</a></li>
       <li><a href="{% url 'inventory:stock_admin' %}">Stock Admin</a></li>
-      <li><a href="{% url 'inventory:track_withdrawals' %}">Track Withdrawals</a></li>
+      <li><a href="{% url 'reporting:reporting_stock_withdrawal:track_withdrawals' %}">Track Withdrawals</a></li>
+      <li><a href="{% url 'reporting:reporting_stock_input:track_stock_registries' %}">Track Stock Registrations</a></li>
       <li><a href="{% url 'inventory:record_purchase_order' %}">Record PO</a></li>
       <li><a href="{% url 'inventory:track_purchase_orders' %}">Track PO</a></li>
       <li><a href="{% url 'inventory:download_report' %}" class="active">Report</a></li>

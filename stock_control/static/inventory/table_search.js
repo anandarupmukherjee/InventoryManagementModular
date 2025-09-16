@@ -2,8 +2,14 @@ window.addEventListener("load", function () {
     const searchProduct = document.getElementById("searchProduct");
     const searchWithdrawal = document.getElementById("searchWithdrawal");
     const searchAdmin = document.getElementById("searchAdmin");  // ✅ new
+    const searchRegistrations = document.getElementById("searchRegistrations");
+    const searchLowStockLots = document.getElementById("searchLowStockLots");
+    const searchExpiredLots = document.getElementById("searchExpiredLots");
     const productTable = document.getElementById("productTable");
     const withdrawalTable = document.getElementById("withdrawalTable");
+    const registrationTable = document.getElementById("registrationTable");
+    const lowStockLotsTable = document.getElementById("lowStockLotsTable");
+    const expiredLotsTable = document.getElementById("expiredLotsTable");
     const adminTable = document.getElementById("adminTable");  // ✅ new
     const searchLowStock = document.getElementById("searchLowStock");
     const lowStockTable = document.getElementById("lowStockTable");
@@ -13,6 +19,12 @@ window.addEventListener("load", function () {
     console.log("🔍 productTable:", productTable ? "✅ Found" : "❌ Not Found");
     console.log("🔍 searchWithdrawal:", searchWithdrawal ? "✅ Found" : "❌ Not Found");
     console.log("🔍 withdrawalTable:", withdrawalTable ? "✅ Found" : "❌ Not Found");
+    console.log("🔍 searchRegistrations:", searchRegistrations ? "✅ Found" : "❌ Not Found");
+    console.log("🔍 registrationTable:", registrationTable ? "✅ Found" : "❌ Not Found");
+    console.log("🔍 searchLowStockLots:", searchLowStockLots ? "✅ Found" : "❌ Not Found");
+    console.log("🔍 lowStockLotsTable:", lowStockLotsTable ? "✅ Found" : "❌ Not Found");
+    console.log("🔍 searchExpiredLots:", searchExpiredLots ? "✅ Found" : "❌ Not Found");
+    console.log("🔍 expiredLotsTable:", expiredLotsTable ? "✅ Found" : "❌ Not Found");
     console.log("🔍 searchAdmin:", searchAdmin ? "✅ Found" : "❌ Not Found");
     console.log("🔍 adminTable:", adminTable ? "✅ Found" : "❌ Not Found");
     console.log("🔍 searchLowStock:", searchLowStock ? "✅ Found" : "❌ Not Found");
@@ -58,6 +70,21 @@ window.addEventListener("load", function () {
     if (searchWithdrawal && withdrawalTable) {
         // Columns: 0 Timestamp, 1 Product, 2 Location, 3 Full, 4 Partial, 5 Type, 6 Code, 7 User
         setupTableSearch("searchWithdrawal", "withdrawalTable", [1, 6, 7]);
+    }
+
+    if (searchRegistrations && registrationTable) {
+        // Columns: 0 Timestamp, 1 Delivery, 2 Location, 3 Barcode, 4 Product, 5 Lot, 6 Expiry, 7 Stock
+        setupTableSearch("searchRegistrations", "registrationTable", [2, 3, 4, 5, 6]);
+    }
+
+    if (searchLowStockLots && lowStockLotsTable) {
+        // Columns: 0 Product, 1 Lot, 2 Lot Stock, 3 Total Stock, 4 Threshold, 5 Expiry, 6 Location
+        setupTableSearch("searchLowStockLots", "lowStockLotsTable", [0, 1, 5, 6]);
+    }
+
+    if (searchExpiredLots && expiredLotsTable) {
+        // Columns: 0 Product, 1 Lot, 2 Expiry, 3 Stock, 4 Location
+        setupTableSearch("searchExpiredLots", "expiredLotsTable", [0, 1, 4]);
     }
 
     if (searchAdmin && adminTable) {

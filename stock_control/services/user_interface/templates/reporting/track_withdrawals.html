@@ -11,22 +11,14 @@
   <script src="{% static 'inventory/table_search.js' %}" defer></script>
 </head>
 <body>
-
-    <!-- Navigation Bar -->
     {% include "includes/navbar.html" %}
 
-
-  <!-- Page Container -->
   <div class="dashboard-container form-v2">
-
-    <!-- Withdrawal Records Card -->
     <div class="card table-card">
       <h2>Withdrawal Records</h2>
 
-      <!-- Search Bar -->
       <input type="text" id="searchWithdrawal" class="search-bar" placeholder="Search by product, code, or user">
 
-      <!-- Location Filter -->
       <form method="get" class="form-v2-form" style="margin: 10px 0; display: flex; gap: 10px; align-items: center;">
         <div class="form-row" style="display: contents;">
           <label for="locationFilter">Filter by Location:</label>

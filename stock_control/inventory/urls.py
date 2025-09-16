@@ -22,6 +22,8 @@ urlpatterns = [
     # Create Withdrawal / Product List
     # path('create_withdrawal/', views.create_withdrawal, name='create_withdrawal'),
     path('product_list/', views.product_list, name='product_list'),
+    path('products/low-stock-lots/', views.low_stock_lots, name='low_stock_lots'),
+    path('products/expired-lots/', views.expired_lots, name='expired_lots'),
     # path('get-product-by-id/', views.get_product_by_id, name='get_product_by_id'),
 
 
@@ -32,7 +34,6 @@ urlpatterns = [
 
     
     # Tracking & Purchase Orders
-    path('track_withdrawals/', views.track_withdrawals, name='track_withdrawals'),
     path('record_purchase_order/', views.record_purchase_order, name='record_purchase_order'),
     path('track_purchase_orders/', views.track_purchase_orders, name='track_purchase_orders'),
     path('mark_order_delivered/<int:order_id>/', views.mark_order_delivered, name='mark_order_delivered'),

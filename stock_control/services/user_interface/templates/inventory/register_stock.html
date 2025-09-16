@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register Stock</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+</head>
+<body>
+    {% include "includes/navbar.html" %}
+
+    <div class="register-stock-container">
+        <div class="card">
+            <h1>Register Stock</h1>
+            <p class="subtitle">Scan a barcode to add one unit to the matching product lot. The timestamp is captured automatically.</p>
+
+            <form method="post" class="scan-form">
+                {% csrf_token %}
+                <label for="register-barcode">Scan Barcode</label>
+                <input type="text" id="register-barcode" name="barcode" autocomplete="off" autofocus placeholder="Scan or enter barcode here">
+
+                <div class="form-row">
+                    <label for="location-select">Location</label>
+                    <select id="location-select" name="location_id">
+                        <option value="">Use product's location</option>
+                        {% for loc in locations %}
+                            <option value="{{ loc.id }}" {% if initial_location_id == loc.id|stringformat:'s' %}selected{% endif %}>{{ loc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <label for="delivery-datetime" class="datetime-label">Delivery Date &amp; Time</label>
+                    <input type="datetime-local" id="delivery-datetime" name="delivery_datetime" value="{{ initial_delivery }}">
+                </div>
+                <div class="form-row">
+                    <label for="use-now">
+                        <input type="checkbox" id="use-now" name="use_now" value="1" {% if initial_use_now %}checked{% endif %}>
+                        Use current date &amp; time
+                    </label>
+                </div>
+
+                <button type="submit">Register Item</button>
+            </form>
+
+            {% if feedback %}
+                <div class="feedback-banner {{ feedback.level }}">
+                    <strong>{{ feedback.message }}</strong>
+                    {% if feedback.level == 'success' and feedback.details %}
+                        <ul class="feedback-details">
+                            <li><span>Product:</span> {{ feedback.details.product_name }} ({{ feedback.details.product_code }})</li>
+                            <li><span>Lot:</span> {{ feedback.details.lot_number }} &middot; <span>Expiry:</span> {{ feedback.details.expiry_date }}</li>
+                            <li><span>Current Stock:</span> {{ feedback.details.current_stock }}</li>
+                            <li><span>Delivery Date:</span> {{ feedback.details.delivery_datetime }}</li>
+                            <li><span>Location:</span> {{ feedback.details.location_name|default:"N/A" }}</li>
+                            <li><span>Timestamp:</span> {{ feedback.details.timestamp }}</li>
+                        </ul>
+                    {% elif feedback.level == 'error' %}
+                        <p class="feedback-hint">Check the barcode and try again.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="table-card">
+            <h2>Recent Registrations</h2>
+            {% if recent_scans %}
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Delivery Date</th>
+                                <th>Location</th>
+                                <th>Barcode</th>
+                                <th>Product</th>
+                                <th>Lot</th>
+                                <th>Expiry</th>
+                                <th class="text-right">Stock After Scan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in recent_scans %}
+                                <tr>
+                                    <td>{{ scan.timestamp }}</td>
+                                    <td>{{ scan.delivery_datetime }}</td>
+                                    <td>{{ scan.location_name|default:"" }}</td>
+                                    <td class="nowrap">{{ scan.barcode }}</td>
+                                    <td>{{ scan.product_name }} ({{ scan.product_code }})</td>
+                                    <td>{{ scan.lot_number }}</td>
+                                    <td>{{ scan.expiry_date }}</td>
+                                    <td class="text-right">{{ scan.current_stock }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-state">No scans recorded yet. Start by scanning a barcode.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const barcodeInput = document.getElementById('register-barcode');
+            const deliveryInput = document.getElementById('delivery-datetime');
+            const useNowCheckbox = document.getElementById('use-now');
+            const form = document.querySelector('.scan-form');
+
+            const focusBarcode = () => {
+                if (barcodeInput) {
+                    barcodeInput.focus();
+                    barcodeInput.select();
+                }
+            };
+
+            const setDeliveryToNow = () => {
+                if (!deliveryInput) return;
+                const now = new Date();
+                const pad = (value) => value.toString().padStart(2, '0');
+                const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                deliveryInput.value = local;
+            };
+
+            const toggleDeliveryState = (shouldFocus = false) => {
+                if (!deliveryInput || !useNowCheckbox) return;
+                if (useNowCheckbox.checked) {
+                    setDeliveryToNow();
+                    deliveryInput.setAttribute('readonly', 'readonly');
+                    focusBarcode();
+                } else {
+                    deliveryInput.removeAttribute('readonly');
+                    if (shouldFocus) {
+                        deliveryInput.focus();
+                    }
+                }
+            };
+
+            focusBarcode();
+
+            if (barcodeInput) {
+                barcodeInput.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter' && barcodeInput.value.trim() === '') {
+                        event.preventDefault();
+                    }
+                });
+            }
+
+            if (useNowCheckbox) {
+                toggleDeliveryState(false);
+                useNowCheckbox.addEventListener('change', () => toggleDeliveryState(!useNowCheckbox.checked));
+            } else if (deliveryInput && !deliveryInput.value) {
+                setDeliveryToNow();
+            }
+
+            if (form) {
+                form.addEventListener('submit', function() {
+                    setTimeout(focusBarcode, 0);
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

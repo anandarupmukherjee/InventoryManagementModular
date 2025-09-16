@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views_lots
+from .register_stock.urls import register_stock_urlpatterns
 
 app_name = 'data_collection_3'
 
@@ -14,3 +15,5 @@ urlpatterns = [
     # Optional: add-another-lot (parallel to your existing stock intake; no overwrite)
     path("products/<str:code>/lots/new", views_lots.create_lot_instance_form, name="create-lot-instance"),
 ]
+
+urlpatterns += register_stock_urlpatterns
