@@ -9,6 +9,7 @@
 
 </head>
 <body>
+  <div class="dashboard-container table-wide">
   <h2>Lot Roll-up for {{ product_code }} — {{ product.name }}</h2>
   <p>
     <a href="{% url 'data_collection_3:product-lots-instances' code=product_code %}">Back to Instances</a>
@@ -42,5 +43,6 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </body>
 </html>

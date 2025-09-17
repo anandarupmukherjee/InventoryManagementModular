@@ -10,51 +10,85 @@
 </head>
 <body>
 
-    <!-- Navigation Bar -->
-    <nav>
-        <ul>
-            <li><a href="{% url 'inventory:dashboard' %}">Dashboard</a></li>
-            <li><a href="{% url 'inventory:register_user' %}" >Register New User</a></li>
-        </ul>
-    </nav>
+    {% include "includes/navbar.html" %}
 
-    <!-- Page Container -->
-    <div class="dashboard-container">
+    <div class="dashboard-container form-v2 w-80">
+        {% if messages %}
+            <div class="alerts">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
 
-        <!-- Manage Users Card -->
-        <div class="card table-card">
-            <h1>Manage Users</h1>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Email</th>
-                            <th>Admin?</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr>
-                            <td>{{ user.username }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>{% if user.is_staff %}✅{% else %}❌{% endif %}</td>
-                            <td>
-                                <a href="{% url 'inventory:edit_user' user.id %}" class="btn btn-primary">Edit</a>
-                                <a href="{% url 'inventory:delete_user' user.id %}" class="btn btn-danger">Delete</a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4">No users found.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="two-col gap-5p">
+            <div class="col col-1">
+                <div class="card form-card">
+                    <h2>Add New User</h2>
+                    <p class="subtitle">Only admins can create new accounts. New users can change their password from <a href="{% url 'password_change' %}">Change Password</a> after signing in.</p>
+                    <div class="form-body">
+                        <form method="post" class="form-v2-form">
+                            {% csrf_token %}
+                            {{ form.non_field_errors }}
+                            {% for field in form %}
+                                <div class="form-row">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                                    {% for error in field.errors %}<div class="error-message">{{ error }}</div>{% endfor %}
+                                </div>
+                            {% endfor %}
+                            <div class="form-actions-sticky">
+                                <button type="submit" class="btn btn-primary">Create User</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col col-2">
+                <div class="card table-card">
+                    <h2>Existing Users</h2>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Organisation</th>
+                                    <th>Email</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in users %}
+                                <tr>
+                                    <td>{{ entry.name|default:"—" }}</td>
+                                    <td>{{ entry.organisation|default:"—" }}</td>
+                                    <td>{{ entry.email|default:"—" }}</td>
+                                    <td>{{ entry.instance.username }}</td>
+                                    <td>{{ entry.role_label }}</td>
+                                    <td>{% if entry.instance.is_active %}Active{% else %}Inactive{% endif %}</td>
+                                    <td>
+                                        <a href="{% url 'inventory:edit_user' entry.instance.id %}" class="btn btn-small btn-primary">Edit</a>
+                                        {% if request.user.id != entry.instance.id %}
+                                            <a href="{% url 'inventory:delete_user' entry.instance.id %}" class="btn btn-small btn-danger">Delete</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7">No users found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
-
     </div>
 
 </body>

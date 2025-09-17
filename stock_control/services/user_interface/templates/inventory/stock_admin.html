@@ -99,12 +99,12 @@
 
       <!-- Product Lots Table -->
       <div class="card table-card wide-card">
-        <h2>Product Lots & Expired Lots</h2>
+        <h2>Lots Requiring Attention</h2>
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>Action</th>
+                <th>Actions</th>
                 <th>Product</th>
                 <th>Lot Number</th>
                 <th>Received</th> 
@@ -121,31 +121,27 @@
               </tr>
             </thead>
             <tbody>
-              {% for p in products %}
-                {% for item in p.items.all %}
-                  {% with item_date=item.expiry_date|date:"Y-m-d" %}
-                    {% if item.expiry_date and item_date <= today_str %}
-                      <tr class="expired-row">
-                    {% else %}
-                      <tr>
-                    {% endif %}
-                  {% endwith %}
+              {% if attention_lots %}
+                {% for entry in attention_lots %}
+                  {% with item=entry.item product=entry.product %}
+                    <tr class="{% if entry.is_expired %}expired-row{% endif %}">
 
-                    {# Delete button for expired lots (unchanged) #}
-                    {% with item_date=item.expiry_date|date:"Y-m-d" %}
-                      {% if item.expiry_date and item_date <= today_str %}
-                        <td>
-                          <form method="POST" action="{% url 'data_collection_1:delete_lot' item.id %}" onsubmit="return confirm('Are you sure you want to discard this expired lot?');">
-                            {% csrf_token %}
-                            <button type="submit" class="delete-button">🗑️ Delete Lot</button>
-                          </form>
-                        </td>
-                      {% else %}
-                        <td></td>
+                    <td>
+                      {% if entry.is_expired %}
+                        <form method="POST" action="{% url 'data_collection_1:delete_lot' item.id %}" onsubmit="return confirm('Are you sure you want to discard this expired lot?');">
+                          {% csrf_token %}
+                          <button type="submit" class="delete-button">🗑️ Delete Lot</button>
+                        </form>
                       {% endif %}
-                    {% endwith %}
+                      {% if entry.is_low_stock %}
+                        <a
+                          href="{% url 'inventory:record_purchase_order' %}?product_code={{ product.product_code }}&product_name={{ product.name }}"
+                          class="btn btn-primary btn-small"
+                        >Record PO</a>
+                      {% endif %}
+                    </td>
 
-                    <td>{{ p.name }}</td>
+                    <td>{{ product.name }}</td>
                     <td>{{ item.lot_number }}</td>
                     <td>
                       {% if item.received_at %}{{ item.received_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
@@ -157,9 +153,8 @@
                     <td>{{ item.product_feature }}</td>
                     <td>{% if item.location %}{{ item.location.name }}{% else %}Central{% endif %}</td>
 
-                    {# --- Acceptance section (NEW) --- #}
                     {% with lat=item.acceptance_tests.last %}
-                      <td>
+                      <td class="acceptance-cell {% if lat %}{% if lat.passed %}acceptance-pass{% elif lat.tested %}acceptance-fail{% else %}acceptance-unknown{% endif %}{% else %}acceptance-unknown{% endif %}">
                         {% if lat %}
                           {% if lat.passed %}
                             <span class="badge badge-green">Passed</span>
@@ -184,11 +179,16 @@
                     {% endwith %}
 
                     <td>
-                      <a href="{% url 'data_collection_3:create-acceptance-test' item_id=item.id %}" target="_blank" rel="noopener">Add/Update</a>
+                      <a href="{% url 'data_collection_3:create-acceptance-test' item_id=item.id %}" target="_blank" rel="noopener" title="Open acceptance testing form for this lot.">Add/Update</a>
                     </td>
-                  </tr>
+                    </tr>
+                  {% endwith %}
                 {% endfor %}
-              {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="14">All lots are healthy — no expired or low stock items found.</td>
+                </tr>
+              {% endif %}
             </tbody>
 
           </table>

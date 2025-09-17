@@ -26,8 +26,8 @@
             <div class="form-row">
               <label for="modelSelect">Select Model:</label>
               <select name="model" id="modelSelect">
-                {% for model in models %}
-                  <option value="{{ model }}" {% if model == selected_model %}selected{% endif %}>{{ model }}</option>
+                {% for model_value, model_label in model_options %}
+                  <option value="{{ model_value }}" {% if model_value == selected_model %}selected{% endif %}>{{ model_label }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -49,7 +49,7 @@
     </div>
 
       <div class="card table-card">
-        <h3>Preview: {{ selected_model }}</h3>
+        <h3>Preview: {{ selected_model_label }}</h3>
         <div class="table-wrapper">
         <table>
           <thead>

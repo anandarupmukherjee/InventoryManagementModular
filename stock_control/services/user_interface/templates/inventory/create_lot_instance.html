@@ -7,13 +7,18 @@
   <link rel="stylesheet" href="{% static 'inventory/styles.css' %}">
 </head>
 <body>
-  <div class="dashboard-container form-v2">
+  <div class="dashboard-container form-v2 table-wide">
     <div class="card form-card">
       <div class="form-body">
         <h2>Add another lot entry for product {{ code }}</h2>
         <form method="post" class="form-v2-form">
           {% csrf_token %}
           <div class="form-grid">
+            <div class="form-row">
+              <label for="barcode_scan">Barcode Scan</label>
+              <input type="text" id="barcode_scan" name="barcode_scan" placeholder="Scan barcode to prefill" autocomplete="off">
+              <div class="field-note">Scan a GS1 barcode to fill lot number and expiry automatically.</div>
+            </div>
             <div class="form-row {% if form_errors.lot_number %}has-error{% endif %}">
               <label for="lot_number">Lot number</label>
               <input type="text" id="lot_number" name="lot_number" required value="{{ form_values.lot_number|default:'' }}" class="{% if form_errors.lot_number %}error{% endif %}">
@@ -44,5 +49,67 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const barcodeInput = document.getElementById('barcode_scan');
+      const lotNumberInput = document.getElementById('lot_number');
+      const expiryInput = document.getElementById('expiry_date');
+
+      if (!barcodeInput) {
+        return;
+      }
+
+      function parseDateToISO(value) {
+        if (!value) return '';
+        if (value.includes('.')) {
+          const parts = value.split('.');
+          if (parts.length === 3) {
+            const [day, month, year] = parts;
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return value;
+        }
+        return '';
+      }
+
+      async function handleBarcodeParse() {
+        const raw = barcodeInput.value.trim();
+        if (!raw) return;
+
+        try {
+          const response = await fetch(`/data/parse-barcode/?raw=${encodeURIComponent(raw)}`);
+          if (!response.ok) {
+            return;
+          }
+          const data = await response.json();
+          if (data.lot_number && lotNumberInput && !lotNumberInput.value) {
+            lotNumberInput.value = data.lot_number;
+          }
+          if (data.expiry_date && expiryInput) {
+            const iso = parseDateToISO(data.expiry_date);
+            if (iso) {
+              expiryInput.value = iso;
+            }
+          }
+        } catch (err) {
+          console.warn('Barcode parsing failed', err);
+        }
+      }
+
+      barcodeInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          handleBarcodeParse();
+        }
+      });
+
+      barcodeInput.addEventListener('blur', function () {
+        handleBarcodeParse();
+      });
+    });
+  </script>
 </body>
 </html>

@@ -5,66 +5,84 @@
 <nav>
   <ul>
     <li><a href="{% url 'inventory:dashboard' %}">Dashboard</a></li>
-    <li><a href="{% url 'data_collection_2:create_withdrawal' %}">User Withdrawal</a></li>
-    {% if user|has_any_role:"Inventory Manager, Leica Staff" %}
-    <li class="dropdown">
-      <a href="#" class="dropbtn">Product Overview</a>
-      <div class="dropdown-content">
-        <a href="{% url 'inventory:product_list' %}">Current Product List</a>
-        <a href="{% url 'inventory:low_stock_lots' %}">Low Stock Lots</a>
-        <a href="{% url 'inventory:expired_lots' %}">Expired Lots</a>
-      </div>
-    </li>
+    {% if user|has_any_role:"Admin,Staff,User" %}
+      <li><a href="{% url 'data_collection_2:create_withdrawal' %}">User Withdrawal</a></li>
     {% endif %}
 
-    {% if user|has_role_or_admin:"Inventory Manager" %}
-    <!-- Stock Management Dropdown -->
-    <li class="dropdown">
-      <a href="#" class="dropbtn">Stock Management</a>
-      <div class="dropdown-content">
-        <a href="/admin/">Database Admin Panel</a>
-        {% if flags|is_enabled:"enable_stock_admin" %}
-          <a href="{% url 'data_collection_1:stock_admin' %}">Stock Admin</a>
-        {% endif %}
-        <a href="{% url 'inventory:record_purchase_order' %}">Record PO</a>
-        <a href="{% url 'data_collection_3:register-stock' %}">Register Stock</a>
-        <a href="{% url 'inventory:track_purchase_orders' %}">Track PO</a>
-        <a href="/admin/data_storage/location/">Manage Locations</a>
-        <a href="/admin/data_storage/supplier/">Manage Suppliers</a>
-      </div>
-    </li>
+    {% if user|has_any_role:"Admin,Staff,User" %}
+      <li class="dropdown">
+        <a href="#" class="dropbtn">Product Overview</a>
+        <div class="dropdown-content">
+          <a href="{% url 'inventory:product_list' %}">Current Product List</a>
+          <a href="{% url 'inventory:low_stock_lots' %}">Low Stock Lots</a>
+          <a href="{% url 'inventory:expired_lots' %}">Expired Lots</a>
+        </div>
+      </li>
+    {% elif user|has_role:"Supplier" %}
+      <li class="dropdown">
+        <a href="#" class="dropbtn">Inventory</a>
+        <div class="dropdown-content">
+          <a href="{% url 'inventory:low_stock_lots' %}">Low Stock Lots</a>
+          <a href="{% url 'inventory:expired_lots' %}">Expired Lots</a>
+        </div>
+      </li>
     {% endif %}
 
+    {% if user|has_any_role:"Admin,Staff" %}
+      <!-- Stock Management Dropdown -->
+      <li class="dropdown">
+        <a href="#" class="dropbtn">Stock Management</a>
+        <div class="dropdown-content">
+          {% if user|has_role_or_admin:"Admin" %}
+            <a href="/admin/">Database Admin Panel</a>
+          {% endif %}
+          {% if flags|is_enabled:"enable_stock_admin" and user|has_any_role:"Admin,Staff" %}
+            <a href="{% url 'data_collection_1:stock_admin' %}">Stock Admin</a>
+          {% endif %}
+          {% if user|has_any_role:"Admin,Staff" %}
+            <a href="{% url 'inventory:record_purchase_order' %}">Record PO</a>
+            <a href="{% url 'data_collection_3:register-stock' %}">Register Stock</a>
+            <a href="{% url 'inventory:track_purchase_orders' %}">Track PO</a>
+            <a href="{% url 'inventory:lot_quality_review' %}">Lot QA Review</a>
+          {% endif %}
+          {% if user|has_role_or_admin:"Admin" %}
+            <a href="/admin/data_storage/location/">Manage Locations</a>
+            <a href="/admin/data_storage/supplier/">Manage Suppliers</a>
+          {% endif %}
+        </div>
+      </li>
+    {% endif %}
 
+    {% if user|has_role_or_admin:"Admin" %}
       <!-- Reports & Analysis Dropdown -->
       <li class="dropdown">
         <a href="#" class="dropbtn">Reports & Analysis</a>
         <div class="dropdown-content">
-          {% if user|has_any_role:"Inventory Manager, Leica Staff" and flags|is_enabled:"enable_reporting" %}
+          {% if flags|is_enabled:"enable_reporting" %}
             <a href="{% url 'reporting:download_report' %}">Report</a>
           {% endif %}
-          {% if user|has_role_or_admin:"Inventory Manager" and flags|is_enabled:"enable_analysis" %}
+          {% if flags|is_enabled:"enable_analysis" %}
             <a href="{% url 'analysis:inventory_analysis_forecasting' %}">Analysis</a>
           {% endif %}
-          {% if user|has_role_or_admin:"Inventory Manager" %}
-            <a href="{% url 'reporting:reporting_stock_withdrawal:track_withdrawals' %}">Track Withdrawals</a>
-            <a href="{% url 'reporting:reporting_stock_input:track_stock_registries' %}">Track Stock Registrations</a>
-          {% endif %}
+          <a href="{% url 'reporting:reporting_stock_withdrawal:track_withdrawals' %}">Track Withdrawals</a>
+          <a href="{% url 'reporting:reporting_stock_input:track_stock_registries' %}">Track Stock Registrations</a>
         </div>
       </li>
+    {% endif %}
 
-    {% if user|has_role_or_admin:"Inventory Manager" %}
+    {% if user|has_role_or_admin:"Admin" %}
       <!-- User Management Dropdown -->
       <li class="dropdown">
         <a href="#" class="dropbtn">User Management</a>
         <div class="dropdown-content">
           <a href="{% url 'inventory:manage_users' %}">Manage Users</a>
-          <a href="{% url 'inventory:register_user' %}">Register User</a>
+          <a href="{% url 'inventory:role_assignment' %}">Role Assignment</a>
         </div>
       </li>
     {% endif %}
 
     {% if user.is_authenticated %}
+      <li><a href="{% url 'password_change' %}">Change Password</a></li>
       <li>
         <form method="post" action="{% url 'logout' %}" style="display:inline;">
           {% csrf_token %}
@@ -76,6 +94,13 @@
     {% endif %}
   </ul>
 </nav>
+
+{% if user.is_authenticated %}
+  <div class="user-session-banner">
+    Signed in as <strong>{{ user.username }}</strong>
+    {% if user.get_full_name %}<span class="user-full-name">{{ user.get_full_name }}</span>{% endif %}
+  </div>
+{% endif %}
 
 
 <!-- ✅ Dropdown Hover Delay Script -->

@@ -12,13 +12,18 @@ from services.data_storage.models import Product, ProductItem, Withdrawal, Purch
 def get_dashboard_data():
     # 1. Stock Level Status
     products = Product.objects.all()
-    stock_labels = []
-    stock_values = []
-    threshold_values = []
+    heatmap_data = []
     for product in products:
-        stock_labels.append(product.name)
-        stock_values.append(product.get_full_items_in_stock())
-        threshold_values.append(product.threshold)
+        stock = product.get_full_items_in_stock()
+        threshold = product.threshold or 1
+        ratio = stock / threshold if threshold else 0
+        heatmap_data.append({
+            'label': product.name,
+            'code': product.product_code,
+            'stock': stock,
+            'threshold': threshold,
+            'ratio': round(ratio, 2),
+        })
 
     # 2. Stock Distribution by Supplier
     supplier_data = Product.objects.values('supplier').annotate(count=Count('id'))
@@ -52,9 +57,7 @@ def get_dashboard_data():
     ).order_by('expiry_date')
 
     return {
-        'stock_labels': stock_labels,
-        'stock_values': stock_values,
-        'threshold_values': threshold_values,
+        'stock_heatmap': heatmap_data,
         'supplier_labels': supplier_labels,
         'supplier_values': supplier_values,
         'withdrawal_dates': withdrawal_dates,

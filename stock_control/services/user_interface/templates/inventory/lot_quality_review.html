@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lot QA Review</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+  <script src="{% static 'inventory/table_search.js' %}" defer></script>
+</head>
+<body>
+  {% include "includes/navbar.html" %}
+
+  <div class="dashboard-container form-v2 table-wide">
+    <div class="card table-card">
+      <h2>Lot Quality Assurance Overview</h2>
+      <p class="subtitle">Search for products by name, code, or lot number. Scan a barcode to jump directly to a product.</p>
+
+      <form method="get" class="form-v2-form qa-filter-form">
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="id_search">Search</label>
+            <input type="text" id="id_search" name="search" value="{{ search_query }}" placeholder="Product name, code, or lot number">
+          </div>
+          <div class="form-row">
+            <label for="id_barcode">Barcode Scan</label>
+            <input type="text" id="id_barcode" name="barcode" value="{{ barcode_query }}" placeholder="Scan barcode here">
+          </div>
+        </div>
+        <div class="form-actions-sticky">
+          <button type="submit" class="btn btn-primary">Apply Filters</button>
+          {% if search_query or barcode_query %}
+            <a href="{% url 'inventory:lot_quality_review' %}" class="btn btn-secondary">Clear</a>
+          {% endif %}
+        </div>
+      </form>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Current Stock</th>
+              <th>Threshold</th>
+              <th>Supplier</th>
+              <th>Passed Lots</th>
+              <th>Failed Lots</th>
+              <th>Untested Lots</th>
+              <th>Earliest Expiry</th>
+              <th>Last Delivery</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{{ row.product.name }} ({{ row.product.product_code }})</td>
+                <td>{{ row.total_stock }}</td>
+                <td>{{ row.threshold }}</td>
+                <td>{{ row.supplier }}</td>
+                <td>{{ row.passed }}</td>
+                <td>{{ row.failed }}</td>
+                <td>{{ row.untested }}</td>
+                <td>{% if row.earliest_expiry %}{{ row.earliest_expiry|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                <td>{% if row.last_received %}{{ row.last_received|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+                <td class="nowrap">
+                  <a href="{% url 'data_collection_3:product-lots-instances' code=row.product.product_code %}" target="_blank" title="Open detailed lot list for this product.">View lots</a> |
+                  <a href="{% url 'data_collection_3:product-lots-rollup' code=row.product.product_code %}" target="_blank" title="See roll-up overview across lots.">Roll-up</a> |
+                  <a href="{% url 'data_collection_3:create-lot-instance' code=row.product.product_code %}" target="_blank" title="Add a new lot instance for this product.">Add lot</a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="10">No products found for the selected filters.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

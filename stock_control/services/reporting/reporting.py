@@ -9,33 +9,73 @@ from django.utils.timezone import make_aware
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
-from services.data_storage.models import Product, Withdrawal, PurchaseOrder  # Adjust as needed
+from services.data_storage.models import (
+    Product,
+    Withdrawal,
+    PurchaseOrder,
+    StockRegistrationLog,
+)  # Adjust as needed
 
 
-
-MODEL_MAP = {
-    'Withdrawal': 'data_storage.Withdrawal',
-    'Product': 'data_storage.Product',
-    'PurchaseOrder': 'data_storage.PurchaseOrder',
+MODEL_DEFINITIONS = {
+    'Withdrawal': {
+        'label': 'Withdrawals',
+        'model_path': 'data_storage.Withdrawal',
+        'date_field': 'timestamp',
+    },
+    'Product': {
+        'label': 'Products',
+        'model_path': 'data_storage.Product',
+    },
+    'PurchaseOrder': {
+        'label': 'Purchase Orders',
+        'model_path': 'data_storage.PurchaseOrder',
+        'date_field': 'order_date',
+    },
+    'StockRegistrationLog': {
+        'label': 'Stock Registration Logs (Check-ins)',
+        'model_path': 'data_storage.StockRegistrationLog',
+        'date_field': 'timestamp',
+    },
+    'DeletedLot': {
+        'label': 'Deleted Lots',
+        'model_path': 'data_storage.Withdrawal',
+        'date_field': 'timestamp',
+        'base_filters': {
+            'withdrawal_type': 'lot_discard',
+        },
+    },
 }
+
+
+MODEL_MAP = {name: meta['model_path'] for name, meta in MODEL_DEFINITIONS.items()}
+MODEL_LABELS = {name: meta['label'] for name, meta in MODEL_DEFINITIONS.items()}
+MODEL_CHOICES = [(name, meta['label']) for name, meta in MODEL_DEFINITIONS.items()]
 
 
 FILTER_FIELDS = {
-    'Withdrawal': 'timestamp',
-    'PurchaseOrder': 'order_date',
-    # Product has no date field to filter
+    name: meta['date_field']
+    for name, meta in MODEL_DEFINITIONS.items()
+    if meta.get('date_field')
 }
 
 def download_report(request):
-    selected_model = request.GET.get('model', 'Withdrawal')
+    default_model = MODEL_CHOICES[0][0]
+    selected_model = request.GET.get('model', default_model)
+    if selected_model not in MODEL_MAP:
+        selected_model = default_model
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     download_type = request.GET.get('download')
 
     preview_model_class = apps.get_model(*MODEL_MAP[selected_model].split('.'))
+    base_filters = MODEL_DEFINITIONS[selected_model].get('base_filters', {})
     preview_fields = [f.name for f in preview_model_class._meta.fields]
 
-    preview_queryset = preview_model_class.objects.all()
+    if base_filters:
+        preview_queryset = preview_model_class.objects.filter(**base_filters)
+    else:
+        preview_queryset = preview_model_class.objects.all()
 
     # Filter preview table if model supports date filtering
     if selected_model in FILTER_FIELDS:
@@ -58,7 +98,7 @@ def download_report(request):
         model_path = MODEL_MAP[selected_model]
         model_class = apps.get_model(*model_path.split('.'))
         fields = [f.name for f in model_class._meta.fields]
-        qs = model_class.objects.all()
+        qs = model_class.objects.filter(**base_filters) if base_filters else model_class.objects.all()
 
         if selected_model in FILTER_FIELDS:
             date_field = FILTER_FIELDS[selected_model]
@@ -123,8 +163,9 @@ def download_report(request):
             return response
 
     return render(request, 'inventory/download_report.html', {
-        'models': MODEL_MAP.keys(),
+        'model_options': MODEL_CHOICES,
         'selected_model': selected_model,
+        'selected_model_label': MODEL_LABELS.get(selected_model, selected_model),
         'fields': preview_fields,
         'data': preview_queryset,
         'start_date': start_date,

@@ -13,7 +13,21 @@
   <div class="dashboard-container form-v2 w-80">
     <div class="card table-card">
       <h2>Expired Lots</h2>
-      <p class="subtitle">Lots with an expiry date on or before {{ today|date:"Y-m-d" }}.</p>
+      <form method="get" class="range-filter" id="expiryRangeForm">
+        {% for range_key, meta in range_definitions.items %}
+          <label>
+            <input
+              type="radio"
+              name="range"
+              value="{{ range_key }}"
+              {% if selected_range == range_key %}checked{% endif %}
+              onchange="this.form.submit();"
+            >
+            {{ meta.label }}
+          </label>
+        {% endfor %}
+      </form>
+      <p class="subtitle">{{ subtitle }}</p>
 
       <input type="text" id="searchExpiredLots" class="search-bar" placeholder="Search by product, lot, or location">
 
@@ -31,7 +45,7 @@
           </thead>
           <tbody>
             {% for item in items %}
-              <tr class="expired-row">
+              <tr class="{% if item.expiry_date and item.expiry_date <= today %}expired-row{% endif %}">
                 <td>{{ item.product.name }} ({{ item.product.product_code }})</td>
                 <td>{{ item.lot_number }}</td>
                 <td>{{ item.expiry_date|date:"Y-m-d" }}</td>

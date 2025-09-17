@@ -9,11 +9,12 @@
 
 </head>
 <body>
+  <div class="dashboard-container table-wide">
   <h2>Lot Instances for {{ product_code }} — {{ product.name }}</h2>
 
   <p>
-    <a href="{% url 'data_collection_3:product-lots-rollup' code=product_code %}">View Roll-up</a> |
-    <a href="{% url 'data_collection_3:create-lot-instance' code=product_code %}">Add Lot Instance</a>
+    <a href="{% url 'data_collection_3:product-lots-rollup' code=product_code %}" title="View roll-up totals for all lots of this product.">View Roll-up</a> |
+    <a href="{% url 'data_collection_3:create-lot-instance' code=product_code %}" title="Add a new lot for this product with quantity and expiry details.">Add Lot Instance</a>
   </p>
 
   <table>
@@ -40,7 +41,7 @@
           <td>{{ item.current_stock }}</td>
 
           {% with lat=item.acceptance_tests.last %}
-            <td>
+            <td class="acceptance-cell {% if lat %}{% if lat.passed %}acceptance-pass{% elif lat.tested %}acceptance-fail{% else %}acceptance-unknown{% endif %}{% else %}acceptance-unknown{% endif %}">
               {% if lat %}
                 {% if lat.passed %}
                   <span class="badge badge-green">Passed</span>
@@ -65,7 +66,7 @@
           {% endwith %}
 
           <td>
-            <a href="{% url 'data_collection_3:create-acceptance-test' item_id=item.id %}">Add/Update</a>
+            <a href="{% url 'data_collection_3:create-acceptance-test' item_id=item.id %}" title="Record or update the acceptance test for this lot.">Add/Update</a>
           </td>
         </tr>
       {% empty %}
@@ -73,5 +74,6 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </body>
 </html>

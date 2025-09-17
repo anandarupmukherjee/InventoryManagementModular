@@ -38,11 +38,14 @@ def product_lots_rollup(request, code):
 def create_acceptance_test(request, item_id):
     item = get_object_or_404(ProductItem, pk=item_id)
     pcode = _pcode(item.product)  # ✅ resolve safely
+    default_signer = ""
+    if request.user.is_authenticated:
+        default_signer = request.user.get_full_name() or request.user.get_username()
 
     if request.method == "POST":
         tested = request.POST.get("tested") == "on"
         passed = request.POST.get("passed") == "on"
-        signed_off_by = request.POST.get("signed_off_by") or None
+        signed_off_by = request.POST.get("signed_off_by") or default_signer or None
         signed_off_at = request.POST.get("signed_off_at") or None
         test_reference = request.POST.get("test_reference") or None
 
@@ -58,7 +61,11 @@ def create_acceptance_test(request, item_id):
         return redirect(reverse("data_collection_3:product-lots-instances", kwargs={"code": pcode}))
 
     # 🔁 pass it to the template so links don't guess field names
-    return render(request, "inventory/acceptance_form.html", {"item": item, "product_code": pcode})
+    return render(request, "inventory/acceptance_form.html", {
+        "item": item,
+        "product_code": pcode,
+        "default_signer": default_signer,
+    })
 
 
 def _parse_date_yyyy_mm_dd(value: str):
@@ -127,4 +134,8 @@ def create_lot_instance_form(request, code):
         )
         return redirect(reverse("data_collection_3:product-lots-instances", kwargs={"code": code}))
 
-    return render(request, "inventory/create_lot_instance.html", {"code": code})
+    return render(request, "inventory/create_lot_instance.html", {
+        "code": code,
+        "form_errors": {},
+        "form_values": {},
+    })

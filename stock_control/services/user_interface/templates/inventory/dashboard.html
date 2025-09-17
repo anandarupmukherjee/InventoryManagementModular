@@ -17,7 +17,10 @@
     <div class="dashboard-container w-80">
         <!-- Welcome Card -->
         <div class="card">
-            <h1>Welcome to the Inventory Dashboard</h1>
+            <div class="card-header with-action">
+                <h1>Welcome to the Inventory Dashboard</h1>
+                <a href="{% url 'inventory:help_center' %}" target="_blank" rel="noopener" class="btn btn-secondary">Help</a>
+            </div>
             {% if user.is_authenticated %}
                 <p>Logged in as: <strong>{{ user.username }}</strong></p>
             {% else %}
@@ -29,30 +32,30 @@
         <div class="dashboard-grid">
 
             <!-- System Summary -->
-            <div class="dashboard-card sys-summary-v2">
+            <div class="dashboard-card sys-summary-v2 grid-span-4">
                 <h2>System Summary</h2>
                 <div class="summary-list">
-                  <div class="sum-row">
+                  <div class="sum-row" title="Shows if any products have fallen below their stock threshold without a pending purchase order.">
                     <div class="sum-label">Low Stock Alerts</div>
                     <div class="sum-dot"><span class="status-indicator {% if has_low_stock_alerts %}blinking-red{% else %}green{% endif %}"></span></div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Highlights whether any product lots are past their expiry date.">
                     <div class="sum-label">Expired Lot Alerts</div>
                     <div class="sum-dot"><span class="status-indicator {% if has_expired_lot_alerts %}blinking-red{% else %}green{% endif %}"></span></div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Alerts you to purchase orders that are overdue for delivery.">
                     <div class="sum-label">Delayed Delivery Alerts</div>
                     <div class="sum-dot"><span class="status-indicator {% if has_delayed_delivery_alerts %}blinking-red{% else %}green{% endif %}"></span></div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Flags products missing a reorder threshold, which affects low stock monitoring.">
                     <div class="sum-label">Products Missing Threshold</div>
                     <div class="sum-dot"><span class="status-indicator {% if has_missing_thresholds %}blinking-red{% else %}green{% endif %}"></span></div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Lists product names that appear more than once so you can tidy duplicates.">
                     <div class="sum-label">
                       Duplicate Product Names
                       {% if duplicate_product_names %}
@@ -68,31 +71,31 @@
                     <div class="sum-dot"><span class="status-indicator {% if duplicate_product_names %}blinking-red{% else %}green{% endif %}"></span></div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Total number of user accounts registered in the system.">
                     <div class="sum-label">Total Users Registered</div>
                     <div class="sum-dot"><strong>{{ total_users }}</strong></div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Count of storage locations configured, excluding the default Central location.">
                     <div class="sum-label">Locations (excl. default)</div>
                     <div class="sum-dot"><strong>{{ locations_count }}</strong></div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Lots that still need an acceptance test even though they have stock available.">
                     <div class="sum-label">Lots Not Tested (qty>0): {{ lots_not_tested_count }}</div>
                     <div class="sum-dot">
                       <span class="status-indicator {% if lots_not_tested_count > 0 %}blinking-red{% else %}green{% endif %}"></span>
                     </div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="Lots that have failed their most recent acceptance test and may need follow-up action.">
                     <div class="sum-label">Failed Lots: {{ failed_lots_count }}</div>
                     <div class="sum-dot">
                       <span class="status-indicator {% if failed_lots_count > 0 %}blinking-red{% else %}green{% endif %}"></span>
                     </div>
                   </div>
 
-                  <div class="sum-row">
+                  <div class="sum-row" title="How many lots currently have an assigned storage location versus the total number of lots.">
                     <div class="sum-label">Locations Mapped to Lots: {{ locations_mapped_count }}/{{ total_lots_count }}</div>
                     <div class="sum-dot">
                       <span class="status-indicator {% if unmapped_lots_count > 0 %}blinking-red{% else %}green{% endif %}"></span>
@@ -102,11 +105,8 @@
             </div>
 
             <!-- Charts -->
-            <div class="dashboard-card">
+            <div class="dashboard-card chart-span-8">
                 {% include 'inventory/base_charts/stock_level_chart.html' %}
-            </div>
-            <div class="dashboard-card">
-                {% include 'inventory/base_charts/supplier_distribution_chart.html' %}
             </div>
             <div class="dashboard-card">
                 {% include 'inventory/base_charts/withdrawal_trend_chart.html' %}

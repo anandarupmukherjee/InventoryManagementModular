@@ -2,7 +2,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import F
-from .forms import WithdrawalForm, ProductForm, PurchaseOrderForm, AdminUserCreationForm, AdminUserEditForm, ProductItemForm, PurchaseOrderCompletionForm
+from .forms import (
+    WithdrawalForm,
+    ProductForm,
+    PurchaseOrderForm,
+    UserCreateForm,
+    UserUpdateForm,
+    ProductItemForm,
+    PurchaseOrderCompletionForm,
+)
 from services.data_storage.models import Product, Withdrawal, PurchaseOrder, ProductItem, PurchaseOrderCompletionLog, Location, StockRegistrationLog
 from services.data_storage.models_acceptance import LotAcceptanceTest
 from django.contrib.auth.forms import UserCreationForm
@@ -39,13 +47,13 @@ from inventory.access_control import group_required
 
 # ✅ Function to check if the user is an admin
 def is_admin(user):
-    return user.is_authenticated and user.is_staff
+    return user.is_authenticated and is_admin_user(user)
 
-@group_required(["Inventory Manager"])
+@group_required(["Admin"])
 def manage_inventory(request):
     return render(request, "manage_inventory.html")
 
-@group_required(["Inventory Manager", "Leica Staff"])
+@group_required(["Admin", "Staff", "User", "Supplier"])
 def view_dashboard(request):
     return render(request, "dashboard.html")
 
@@ -53,34 +61,62 @@ def view_dashboard(request):
 @login_required
 @user_passes_test(is_admin, login_url='inventory:dashboard')
 def manage_users(request):
-    users = User.objects.all()
-    return render(request, 'registration/manage_users.html', {'users': users})
+    ensure_role_groups()
+    if request.method == 'POST':
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            role_key = form.cleaned_data['role']
+            set_user_role(user, role_key)
+            messages.success(request, f"User '{user.username}' created successfully.")
+            return redirect('inventory:manage_users')
+    else:
+        form = UserCreateForm(initial={'role': ROLE_KEY_USER})
+
+    users = User.objects.all().order_by('username')
+    user_rows = []
+    for user in users:
+        role_key = get_user_role(user)
+        user_rows.append({
+            'instance': user,
+            'name': user.first_name,
+            'organisation': user.last_name,
+            'email': user.email,
+            'role_key': role_key,
+            'role_label': ROLE_LABELS.get(role_key, '—'),
+        })
+
+    return render(request, 'registration/manage_users.html', {
+        'form': form,
+        'users': user_rows,
+        'role_labels': ROLE_LABELS,
+    })
 
 # ✅ Admin-only view to register a new user
 @login_required
 @user_passes_test(is_admin, login_url='inventory:dashboard')
 def register_user(request):
-    if request.method == 'POST':
-        form = AdminUserCreationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('inventory:manage_users')
-    else:
-        form = AdminUserCreationForm()
-    return render(request, 'registration/register_user.html', {'form': form})
+    messages.info(request, "User registration is now handled from the Manage Users page.")
+    return redirect('inventory:manage_users')
 
 # ✅ Admin-only view to edit a user
 @login_required
 @user_passes_test(is_admin, login_url='inventory:dashboard')
 def edit_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
+    ensure_role_groups()
+    role_initial = get_user_role(user) or ROLE_KEY_USER
     if request.method == 'POST':
-        form = AdminUserEditForm(request.POST, instance=user)
+        form = UserUpdateForm(request.POST, instance=user, role_initial=role_initial)
         if form.is_valid():
-            form.save()
+            updated_user = form.save()
+            role_key = form.cleaned_data['role']
+            set_user_role(updated_user, role_key)
+            messages.success(request, f"User '{updated_user.username}' updated.")
             return redirect('inventory:manage_users')
     else:
-        form = AdminUserEditForm(instance=user)
+        form = UserUpdateForm(instance=user, role_initial=role_initial)
+        form.fields['role'].initial = role_initial
     return render(request, 'registration/edit_user.html', {'form': form, 'user_obj': user})
 
 # ✅ Admin-only view to delete a user
@@ -88,10 +124,51 @@ def edit_user(request, user_id):
 @user_passes_test(is_admin, login_url='inventory:dashboard')
 def delete_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
+    if user == request.user:
+        messages.error(request, "You cannot delete your own account.")
+        return redirect('inventory:manage_users')
     if request.method == "POST":
         user.delete()
+        messages.success(request, "User deleted.")
         return redirect('inventory:manage_users')
     return render(request, 'registration/delete_user.html', {'user_obj': user})
+
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
+def role_assignment(request):
+    ensure_role_groups()
+    users = User.objects.all().order_by('username')
+
+    if request.method == 'POST':
+        updates = 0
+        for user in users:
+            field_name = f"role_{user.id}"
+            role_key = request.POST.get(field_name)
+            if role_key and role_key in ROLE_LABELS:
+                if get_user_role(user) != role_key:
+                    set_user_role(user, role_key)
+                    updates += 1
+        if updates:
+            messages.success(request, f"Roles updated for {updates} user(s).")
+        else:
+            messages.info(request, "No changes were made to role assignments.")
+        return redirect('inventory:role_assignment')
+
+    user_rows = []
+    for user in users:
+        role_key = get_user_role(user) or ROLE_KEY_USER
+        user_rows.append({
+            'instance': user,
+            'role_key': role_key,
+            'role_label': ROLE_LABELS.get(role_key, '—'),
+        })
+
+    return render(request, 'registration/role_assignment.html', {
+        'users': user_rows,
+        'role_choices': ROLE_CHOICES,
+        'role_features': ROLE_FEATURE_SUMMARY,
+    })
 
 
 ##################### MODULARITY EXPERIMENTAL ##########################
@@ -101,7 +178,8 @@ from services.reporting.reporting import download_report as _download_report
 from services.data_collection.data_collection import (
     parse_barcode as _parse_barcode,
     get_product_by_barcode as _get_product_by_barcode,
-    get_product_by_id as _get_product_by_id
+    get_product_by_id as _get_product_by_id,
+    parse_barcode_data,
 )
 from services.data_collection_1.stock_admin import stock_admin as _stock_admin, delete_lot as _delete_lot
 from services.analysis.analysis import get_dashboard_data
@@ -111,10 +189,25 @@ from services.data_collection_2.create_withdrawal import create_withdrawal as _c
 from services.data_storage.models import Product, ProductItem, PurchaseOrder
 from django.contrib.auth.models import User
 from collections import Counter, defaultdict
+from .constants import (
+    ROLE_CHOICES,
+    ROLE_LABELS,
+    ROLE_FEATURE_SUMMARY,
+    ROLE_KEY_ADMIN,
+    ROLE_KEY_STAFF,
+    ROLE_KEY_USER,
+    ROLE_KEY_SUPPLIER,
+)
+from .utils import ensure_role_groups, set_user_role, get_user_role, is_admin_user
+from django.urls import reverse, NoReverseMatch
 
 @login_required
-@group_required(["Inventory Manager", "Leica Staff"])
+@group_required(["Admin", "Staff", "User", "Supplier"])
 def inventory_dashboard(request):
+    role_key = get_user_role(request.user)
+    if role_key == ROLE_KEY_SUPPLIER:
+        return redirect('inventory:low_stock_lots')
+
     context = get_dashboard_data()
 
     # 1. Low stock alerts
@@ -193,6 +286,122 @@ def inventory_dashboard(request):
 
 
 @login_required
+@group_required(["Admin", "Staff", "User", "Supplier"])
+def help_center(request):
+    role_key = get_user_role(request.user) or ROLE_KEY_USER
+
+    def safe_reverse(name):
+        try:
+            return reverse(name)
+        except NoReverseMatch:
+            return None
+
+    sections_catalog = [
+        {
+            'key': 'getting_started',
+            'title': 'Getting Started',
+            'description': 'Begin at the dashboard to review alerts, then follow the guided tasks below.',
+            'action_defs': [
+                ('Open Dashboard', 'inventory:dashboard', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER, ROLE_KEY_SUPPLIER]),
+                ('View Profile & Change Password', 'password_change', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER, ROLE_KEY_SUPPLIER]),
+            ],
+            'roles': [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER, ROLE_KEY_SUPPLIER],
+        },
+        {
+            'key': 'withdrawals',
+            'title': 'Withdraw Stock',
+            'description': 'Scan a barcode or pick from the list to record items leaving inventory.',
+            'action_defs': [
+                ('Create Withdrawal', 'data_collection_2:create_withdrawal', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER]),
+            ],
+            'roles': [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER],
+        },
+        {
+            'key': 'product_overview',
+            'title': 'Monitor Product Levels',
+            'description': 'Review stock levels, low stock alerts, and expiring lots to plan replenishment.',
+            'action_defs': [
+                ('Current Product List', 'inventory:product_list', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER]),
+                ('Low Stock Lots', 'inventory:low_stock_lots', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER, ROLE_KEY_SUPPLIER]),
+                ('Expired Lots', 'inventory:expired_lots', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER, ROLE_KEY_SUPPLIER]),
+            ],
+            'roles': [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER],
+        },
+        {
+            'key': 'supplier_tools',
+            'title': 'Supplier View',
+            'description': 'Focus on lots requiring supplier attention: upcoming expiries and low quantities.',
+            'action_defs': [
+                ('Low Stock Lots', 'inventory:low_stock_lots', [ROLE_KEY_SUPPLIER]),
+                ('Expired Lots', 'inventory:expired_lots', [ROLE_KEY_SUPPLIER]),
+            ],
+            'roles': [ROLE_KEY_SUPPLIER],
+        },
+        {
+            'key': 'stock_management',
+            'title': 'Manage Stock & Lots',
+            'description': 'Register incoming stock, maintain lots, and capture acceptance testing.',
+            'action_defs': [
+                ('Stock Admin Tools', 'data_collection_1:stock_admin', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
+                ('Register New Stock', 'data_collection_3:register-stock', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
+                ('Lot QA Review', 'inventory:lot_quality_review', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
+            ],
+            'roles': [ROLE_KEY_ADMIN, ROLE_KEY_STAFF],
+        },
+        {
+            'key': 'purchase_orders',
+            'title': 'Purchase Orders',
+            'description': 'Create, track, and complete purchase orders to replenish inventory.',
+            'action_defs': [
+                ('Record Purchase Order', 'inventory:record_purchase_order', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
+                ('Track Purchase Orders', 'inventory:track_purchase_orders', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER]),
+            ],
+            'roles': [ROLE_KEY_ADMIN, ROLE_KEY_STAFF, ROLE_KEY_USER],
+        },
+        {
+            'key': 'reporting',
+            'title': 'Reports & Insights',
+            'description': 'Export data and explore trends to support forecasting and audits.',
+            'action_defs': [
+                ('Download Reports', 'reporting:download_report', [ROLE_KEY_ADMIN]),
+                ('Inventory Analysis', 'analysis:inventory_analysis_forecasting', [ROLE_KEY_ADMIN]),
+            ],
+            'roles': [ROLE_KEY_ADMIN],
+        },
+        {
+            'key': 'user_management',
+            'title': 'Manage Users & Roles',
+            'description': 'Add team members and adjust permissions to match responsibilities.',
+            'action_defs': [
+                ('Manage Users', 'inventory:manage_users', [ROLE_KEY_ADMIN]),
+                ('Role Assignment', 'inventory:role_assignment', [ROLE_KEY_ADMIN]),
+            ],
+            'roles': [ROLE_KEY_ADMIN],
+        },
+    ]
+
+    available_sections = []
+    for section in sections_catalog:
+        if role_key not in section['roles']:
+            continue
+        actions = []
+        for label, route_name, roles in section['action_defs']:
+            url = safe_reverse(route_name)
+            if url and role_key in roles:
+                actions.append({'label': label, 'url': url, 'roles': roles})
+        available_sections.append({
+            'title': section['title'],
+            'description': section['description'],
+            'actions': actions,
+        })
+
+    return render(request, 'inventory/help_center.html', {
+        'sections': available_sections,
+        'role_label': ROLE_LABELS.get(role_key, 'User'),
+    })
+
+
+@login_required
 @user_passes_test(is_admin, login_url='inventory:dashboard')
 def inventory_analysis_forecasting(request):
     return _inventory_analysis_forecasting(request)
@@ -218,7 +427,7 @@ def get_product_by_id(request):
 
 
 @login_required
-@user_passes_test(is_admin, login_url='inventory:dashboard')
+@group_required(["Admin", "Staff"])
 def stock_admin(request, product_id=None):
     response = _stock_admin(request, product_id=product_id)
     if isinstance(response, dict) and response.get("redirect"):
@@ -226,7 +435,7 @@ def stock_admin(request, product_id=None):
     return response
 
 @login_required
-@user_passes_test(is_admin, login_url='inventory:dashboard')
+@group_required(["Admin", "Staff"])
 def delete_lot(request, item_id):
     response = _delete_lot(request, item_id)
     if isinstance(response, dict) and response.get("redirect"):
@@ -235,6 +444,7 @@ def delete_lot(request, item_id):
 
 
 @login_required
+@group_required(["Admin", "Staff", "User"])
 def create_withdrawal(request):
     return _create_withdrawal(request)
 
@@ -246,7 +456,7 @@ def create_withdrawal(request):
 
 
 @login_required
-@group_required(["Inventory Manager", "Leica Staff"])
+@group_required(["Admin", "Staff", "User"])
 def product_list(request):
     products = (
         Product.objects
@@ -316,7 +526,7 @@ def product_list(request):
 
 
 @login_required
-@group_required(["Inventory Manager", "Leica Staff"])
+@group_required(["Admin", "Staff", "User", "Supplier"])
 def low_stock_lots(request):
     products = Product.objects.prefetch_related('items', 'items__location').all()
     rows = []
@@ -363,23 +573,62 @@ def low_stock_lots(request):
 
 
 @login_required
-@group_required(["Inventory Manager", "Leica Staff"])
+@group_required(["Admin", "Staff", "User", "Supplier"])
 def expired_lots(request):
-    today = timezone.now().date()
+    today = timezone.localdate() if hasattr(timezone, 'localdate') else timezone.now().date()
+    selected_range = request.GET.get('range', 'expired')
+    range_definitions = {
+        'expired': {
+            'label': 'Already expired',
+            'filter': {'expiry_date__lte': today},
+            'description': f"Lots with an expiry date on or before {today.strftime('%Y-%m-%d')}.",
+        },
+        '7_days': {
+            'label': 'Expiring in 7 days',
+            'range_end': today + datetime.timedelta(days=7),
+        },
+        '1_month': {
+            'label': 'Expiring in 1 month',
+            'range_end': today + datetime.timedelta(days=30),
+        },
+    }
+
+    if selected_range not in range_definitions:
+        selected_range = 'expired'
+
+    definition = range_definitions[selected_range]
+    filters = {'expiry_date__isnull': False}
+
+    if selected_range == 'expired':
+        filters.update(definition['filter'])
+    else:
+        range_end = definition['range_end']
+        filters.update({
+            'expiry_date__gt': today,
+            'expiry_date__lte': range_end,
+        })
+        definition['description'] = (
+            f"Lots with an expiry date between {today.strftime('%Y-%m-%d')} and {range_end.strftime('%Y-%m-%d')}"
+        )
+
     items = (ProductItem.objects
-             .filter(expiry_date__isnull=False, expiry_date__lte=today)
+             .filter(**filters)
              .select_related('product', 'location')
              .order_by('expiry_date'))
+
     return render(request, 'inventory/expired_lots.html', {
         'items': items,
         'today': today,
+        'selected_range': selected_range,
+        'range_definitions': range_definitions,
+        'subtitle': definition['description'],
     })
 
 
 
 # ✅ Updated view function
 @login_required
-@user_passes_test(is_admin, login_url='inventory:dashboard')
+@group_required(["Admin", "Staff"])
 def record_purchase_order(request):
     initial = {}
     if request.method == "GET":
@@ -440,7 +689,7 @@ def record_purchase_order(request):
 
 
 @login_required
-@group_required(["Inventory Manager", "Leica Staff"])
+@group_required(["Admin", "Staff", "User"])
 def track_purchase_orders(request):
     # Load POs, excluding delivered orders older than 7 days
     seven_days_ago = now() - timedelta(days=7)
@@ -586,7 +835,7 @@ def track_purchase_orders(request):
 
 
 @login_required
-@user_passes_test(is_admin, login_url='inventory:dashboard')
+@group_required(["Admin", "Staff"])
 def mark_order_delivered(request, order_id):
     purchase_order = get_object_or_404(PurchaseOrder, id=order_id)
     if purchase_order.status != 'Delivered':
@@ -596,3 +845,107 @@ def mark_order_delivered(request, order_id):
         purchase_order.status = 'Delivered'
         purchase_order.save()
     return redirect('inventory:track_purchase_orders')
+
+
+@login_required
+@group_required(["Admin", "Staff"])
+def lot_quality_review(request):
+    search_query = (request.GET.get('search') or '').strip()
+    barcode_query = (request.GET.get('barcode') or '').strip()
+
+    products = Product.objects.prefetch_related(
+        Prefetch(
+            "items",
+            queryset=ProductItem.objects.prefetch_related(
+                Prefetch("acceptance_tests", queryset=LotAcceptanceTest.objects.order_by("-created_at"))
+            )
+        )
+    )
+
+    if barcode_query:
+        parsed = parse_barcode_data(barcode_query)
+        codes = []
+        if parsed:
+            code = parsed.get('product_code') or ''
+            if code:
+                codes.append(code)
+                normalized = code.lstrip('0')
+                if normalized and normalized != code:
+                    codes.append(normalized)
+        else:
+            normalized = barcode_query.lstrip('0')
+            codes = [barcode_query]
+            if normalized and normalized != barcode_query:
+                codes.append(normalized)
+        if codes:
+            products = products.filter(product_code__in=codes)
+        else:
+            products = products.none()
+
+    if search_query:
+        products = products.filter(
+            Q(product_code__icontains=search_query) |
+            Q(name__icontains=search_query) |
+            Q(items__lot_number__icontains=search_query)
+        ).distinct()
+
+    products = products.order_by('name')
+
+    product_codes = [p.product_code for p in products]
+    logs_by_product = {
+        entry['product_code']: entry
+        for entry in (
+            StockRegistrationLog.objects
+            .filter(product_code__in=product_codes)
+            .values('product_code')
+            .annotate(last_delivery=Max('delivery_datetime'), last_timestamp=Max('timestamp'))
+        )
+    }
+
+    rows = []
+    for product in products:
+        items = list(product.items.all())
+        total_stock = sum(item.current_stock for item in items)
+        passed = failed = untested = 0
+        earliest_expiry = None
+
+        for item in items:
+            tests = list(getattr(item, "acceptance_tests", []).all()) if hasattr(item, "acceptance_tests") else []
+            last_test = tests[0] if tests else None
+            if not last_test:
+                untested += 1
+            else:
+                if getattr(last_test, "tested", False):
+                    if getattr(last_test, "passed", False):
+                        passed += 1
+                    else:
+                        failed += 1
+                else:
+                    untested += 1
+
+            if item.expiry_date:
+                if earliest_expiry is None or item.expiry_date < earliest_expiry:
+                    earliest_expiry = item.expiry_date
+
+        log_entry = logs_by_product.get(product.product_code)
+        last_received = None
+        if log_entry:
+            last_received = log_entry['last_delivery'] or log_entry['last_timestamp']
+
+        rows.append({
+            'product': product,
+            'total_stock': total_stock,
+            'threshold': product.threshold,
+            'supplier': product.supplier,
+            'passed': passed,
+            'failed': failed,
+            'untested': untested,
+            'earliest_expiry': earliest_expiry,
+            'last_received': last_received,
+        })
+
+    return render(request, 'inventory/lot_quality_review.html', {
+        'rows': rows,
+        'search_query': search_query,
+        'barcode_query': barcode_query,
+    })

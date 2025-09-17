@@ -79,9 +79,9 @@
 
                             <!-- ✅ Links -->
                             <td class="nowrap sticky-right">
-                                <a href="{% url 'data_collection_3:product-lots-instances' code=product.product_code %}" target="_blank">View lots</a> |
-                                <a href="{% url 'data_collection_3:product-lots-rollup' code=product.product_code %}" target="_blank">Roll-up</a> |
-                                <a href="{% url 'data_collection_3:create-lot-instance' code=product.product_code %}" target="_blank">Add lot</a>
+                                <a href="{% url 'data_collection_3:product-lots-instances' code=product.product_code %}" target="_blank" title="Open a detailed view of every lot for this product.">View lots</a> |
+                                <a href="{% url 'data_collection_3:product-lots-rollup' code=product.product_code %}" target="_blank" title="See a summary roll-up showing totals by lot for this product.">Roll-up</a> |
+                                <a href="{% url 'data_collection_3:create-lot-instance' code=product.product_code %}" target="_blank" title="Add a new lot instance for this product.">Add lot</a>
                             </td>
                             </tr>
                         {% empty %}

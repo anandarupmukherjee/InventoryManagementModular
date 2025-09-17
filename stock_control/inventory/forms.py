@@ -5,6 +5,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.utils.timezone import now
 
+from .constants import ROLE_CHOICES
+
 class WithdrawalForm(forms.ModelForm):
     # Extra fields for manual mode (not mapped to model directly)
 
@@ -68,21 +70,59 @@ class ProductItemForm(forms.ModelForm):
 
 
 
-class AdminUserCreationForm(UserCreationForm):
-    is_staff = forms.BooleanField(required=False, label="Admin Privileges")
+class UserCreateForm(UserCreationForm):
+    full_name = forms.CharField(label="Name", max_length=150)
+    organisation = forms.CharField(label="Organisation", max_length=150)
+    email = forms.EmailField(label="Email")
+    role = forms.ChoiceField(label="Role", choices=ROLE_CHOICES)
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ['username', 'email']
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.first_name = self.cleaned_data['full_name']
+        user.last_name = self.cleaned_data['organisation']
+        user.email = self.cleaned_data['email']
+        if commit:
+            user.save()
+        return user
+
+
+class UserUpdateForm(forms.ModelForm):
+    full_name = forms.CharField(label="Name", max_length=150)
+    organisation = forms.CharField(label="Organisation", max_length=150, required=False)
+    email = forms.EmailField(label="Email")
+    role = forms.ChoiceField(label="Role", choices=ROLE_CHOICES)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'is_staff', 'password1', 'password2']
+        fields = ['username', 'email', 'is_active']
+        widgets = {
+            'username': forms.TextInput(attrs={'readonly': 'readonly'}),
+        }
 
+    def __init__(self, *args, **kwargs):
+        self.role_initial = kwargs.pop('role_initial', None)
+        super().__init__(*args, **kwargs)
+        instance = self.instance
+        if instance:
+            self.fields['full_name'].initial = instance.first_name
+            self.fields['organisation'].initial = instance.last_name
+            self.fields['email'].initial = instance.email
+            self.fields['username'].disabled = True
+        if self.role_initial is not None:
+            self.fields['role'].initial = self.role_initial
 
-class AdminUserEditForm(forms.ModelForm):
-    is_active = forms.BooleanField(required=False, label="Active User")
-    is_staff = forms.BooleanField(required=False, label="Admin Privileges")
-
-    class Meta:
-        model = User
-        fields = ['username', 'email', 'is_active', 'is_staff']
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.first_name = self.cleaned_data['full_name']
+        user.last_name = self.cleaned_data['organisation']
+        user.email = self.cleaned_data['email']
+        if commit:
+            user.save()
+        return user
 
 
 class PurchaseOrderForm(forms.ModelForm):

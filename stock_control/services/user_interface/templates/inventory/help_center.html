@@ -1,0 +1,41 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Help & Onboarding</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+</head>
+<body>
+
+  {% include "includes/navbar.html" %}
+
+  <div class="dashboard-container form-v2 w-80">
+    <div class="card">
+      <div class="card-header with-action">
+        <h1>Help &amp; Onboarding Guide</h1>
+        <span class="badge badge-grey">Role: {{ role_label }}</span>
+      </div>
+      <p class="subtitle">Quick tips tailored to what you can access. Work through the sections below to get familiar with the platform.</p>
+    </div>
+
+    <div class="help-grid">
+      {% for section in sections %}
+        <div class="card help-card">
+          <h2>{{ section.title }}</h2>
+          <p>{{ section.description }}</p>
+          {% if section.actions %}
+            <ul class="help-action-list">
+              {% for action in section.actions %}
+                <li><a href="{{ action.url }}" class="btn btn-secondary" target="_blank" rel="noopener">{{ action.label }}</a></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</body>
+</html>

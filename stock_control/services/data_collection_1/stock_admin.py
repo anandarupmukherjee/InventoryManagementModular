@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.shortcuts import render, get_object_or_404
 from django.utils.timezone import now
 from django.db.models import F
@@ -28,7 +30,7 @@ def stock_admin(request, product_id=None):
                     if parsed_lot:
                         editing_lot_item = ProductItem.objects.filter(product=editing_product, lot_number=parsed_lot).first()
 
-    products = Product.objects.all().order_by('name')
+    products = Product.objects.all().prefetch_related('items').order_by('name')
     product = get_object_or_404(Product, pk=product_id) if product_id else None
 
     if request.method == "POST":
@@ -55,14 +57,52 @@ def stock_admin(request, product_id=None):
             except ValueError:
                 pass
 
-    low_stock = [p for p in products if sum(item.current_stock for item in p.items.all()) < p.threshold]
+    today = timezone.localdate() if hasattr(timezone, 'localdate') else timezone.now().date()
+    attention_lots = []
+    low_stock_products = []
+
+    for product_entry in products:
+        items = list(product_entry.items.all())
+        total_stock = Decimal('0')
+        for item in items:
+            if item.current_stock is not None:
+                total_stock += item.current_stock
+        try:
+            threshold_value = Decimal(product_entry.threshold)
+        except Exception:
+            threshold_value = Decimal('0')
+
+        is_low_stock = total_stock < threshold_value if threshold_value else False
+        if is_low_stock:
+            low_stock_products.append(product_entry)
+
+        for item in items:
+            expiry_date = item.expiry_date
+            is_expired = bool(expiry_date and expiry_date <= today)
+            if not is_expired and not is_low_stock:
+                continue
+            attention_lots.append({
+                'product': product_entry,
+                'item': item,
+                'is_expired': is_expired,
+                'is_low_stock': is_low_stock,
+            })
+
+    attention_lots.sort(
+        key=lambda entry: (
+            not entry['is_expired'],  # expired lots first
+            entry['product'].name.lower(),
+            entry['item'].lot_number,
+        )
+    )
 
     context = {
         'products': products,
         'product_form': product_form,
         'product_item_form': product_item_form,
         'editing_product': editing_product,
-        'low_stock': low_stock,
+        'low_stock': low_stock_products,
+        'attention_lots': attention_lots,
         'now': now(),
     }
     return render(request, 'inventory/stock_admin.html', context)
@@ -87,4 +127,3 @@ def delete_lot(request, item_id):
         )
         item.delete()
         return redirect('data_collection_1:stock_admin')
-

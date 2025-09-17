@@ -1,0 +1,85 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role Assignment</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+</head>
+<body>
+
+    {% include "includes/navbar.html" %}
+
+    <div class="dashboard-container form-v2 w-80">
+        {% if messages %}
+            <div class="alerts">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="card form-card">
+            <h2>Role Access Overview</h2>
+            <div class="form-body">
+                <div class="role-grid">
+                    {% for role_key, features in role_features.items %}
+                        <div class="role-card">
+                            <h3>{{ role_key|title }}</h3>
+                            <ul>
+                                {% for feature in features %}
+                                    <li>{{ feature }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card table-card">
+            <h2>Assign Roles</h2>
+            <form method="post">
+                {% csrf_token %}
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Current Role</th>
+                                <th>Set Role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in users %}
+                                <tr>
+                                    <td>{{ entry.instance.get_full_name|default:entry.instance.username }}</td>
+                                    <td>{{ entry.role_label }}</td>
+                                    <td>
+                                        <select name="role_{{ entry.instance.id }}">
+                                            {% for role_key, role_label in role_choices %}
+                                                <option value="{{ role_key }}" {% if role_key == entry.role_key %}selected{% endif %}>{{ role_label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3">No users available.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-actions-sticky">
+                    <button type="submit" class="btn btn-primary">Save Role Assignments</button>
+                    <a href="{% url 'inventory:manage_users' %}" class="btn btn-secondary">Back to Manage Users</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>
