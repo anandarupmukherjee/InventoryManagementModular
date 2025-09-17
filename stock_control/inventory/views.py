@@ -136,6 +136,41 @@ def delete_user(request, user_id):
 
 @login_required
 @user_passes_test(is_admin, login_url='inventory:dashboard')
+def user_activity_overview(request):
+    raw_active_entries = get_active_user_sessions()
+
+    active_rows = []
+    for entry in raw_active_entries:
+        user = entry['user']
+        role_key = get_user_role(user)
+        active_rows.append({
+            'user': user,
+            'role_label': ROLE_LABELS.get(role_key, '—'),
+            'last_login': entry['last_login'],
+            'session_expiry': entry['session_expiry'],
+        })
+
+    all_users_queryset = User.objects.all().prefetch_related('groups').order_by('-last_login', 'username')
+    all_users_list = list(all_users_queryset)
+    all_user_rows = []
+    for user in all_users_list:
+        role_key = get_user_role(user)
+        all_user_rows.append({
+            'user': user,
+            'role_label': ROLE_LABELS.get(role_key, '—'),
+        })
+
+    context = {
+        'active_entries': active_rows,
+        'active_user_total': len(active_rows),
+        'total_users': len(all_users_list),
+        'all_users': all_user_rows,
+    }
+    return render(request, 'registration/user_activity.html', context)
+
+
+@login_required
+@user_passes_test(is_admin, login_url='inventory:dashboard')
 def role_assignment(request):
     ensure_role_groups()
     users = User.objects.all().order_by('username')
@@ -198,7 +233,13 @@ from .constants import (
     ROLE_KEY_USER,
     ROLE_KEY_SUPPLIER,
 )
-from .utils import ensure_role_groups, set_user_role, get_user_role, is_admin_user
+from .utils import (
+    ensure_role_groups,
+    set_user_role,
+    get_user_role,
+    is_admin_user,
+    get_active_user_sessions,
+)
 from django.urls import reverse, NoReverseMatch
 
 @login_required

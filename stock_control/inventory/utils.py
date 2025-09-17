@@ -1,6 +1,10 @@
-from typing import Optional
+import datetime as dt
+from typing import Dict, List, Optional
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, User
+from django.contrib.sessions.models import Session
+from django.utils import timezone
 
 from .constants import (
     ROLE_GROUP_MAP,
@@ -75,3 +79,56 @@ def is_admin_user(user: User) -> bool:
     if user.is_superuser:
         return True
     return get_user_role(user) == ROLE_KEY_ADMIN
+
+
+def _active_session_map() -> Dict[int, Dict[str, timezone.datetime]]:
+    """Return a map of user_id to freshest session metadata for authenticated users."""
+    session_map: Dict[int, Dict[str, timezone.datetime]] = {}
+    active_sessions = Session.objects.filter(expire_date__gte=timezone.now())
+    for session in active_sessions:
+        data = session.get_decoded()
+        user_id = data.get("_auth_user_id")
+        if not user_id:
+            continue
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            continue
+        current = session_map.get(user_id)
+        if not current or session.expire_date > current["expire_date"]:
+            session_map[user_id] = {"expire_date": session.expire_date}
+    return session_map
+
+
+def get_active_user_count() -> int:
+    """Return the number of distinct users with a non-expired session."""
+    return len(_active_session_map())
+
+
+def get_active_user_sessions() -> List[Dict[str, object]]:
+    """Return a list of dictionaries describing currently authenticated users."""
+    session_map = _active_session_map()
+    if not session_map:
+        return []
+
+    user_model = get_user_model()
+    users = user_model.objects.filter(id__in=session_map.keys()).prefetch_related("groups")
+    user_lookup = {user.id: user for user in users}
+
+    entries: List[Dict[str, object]] = []
+    for user_id, payload in session_map.items():
+        user = user_lookup.get(user_id)
+        if not user:
+            continue
+        entries.append({
+            "user": user,
+            "session_expiry": payload["expire_date"],
+            "last_login": user.last_login,
+        })
+
+    floor = dt.datetime.min.replace(tzinfo=dt.timezone.utc)
+    entries.sort(
+        key=lambda entry: entry["last_login"] or floor,
+        reverse=True,
+    )
+    return entries

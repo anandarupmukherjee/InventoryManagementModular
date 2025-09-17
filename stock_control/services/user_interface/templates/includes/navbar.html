@@ -76,6 +76,7 @@
         <a href="#" class="dropbtn">User Management</a>
         <div class="dropdown-content">
           <a href="{% url 'inventory:manage_users' %}">Manage Users</a>
+          <a href="{% url 'inventory:user_activity' %}">User Activity</a>
           <a href="{% url 'inventory:role_assignment' %}">Role Assignment</a>
         </div>
       </li>
@@ -97,8 +98,9 @@
 
 {% if user.is_authenticated %}
   <div class="user-session-banner">
-    Signed in as <strong>{{ user.username }}</strong>
+    <span>Signed in as <strong>{{ user.username }}</strong></span>
     {% if user.get_full_name %}<span class="user-full-name">{{ user.get_full_name }}</span>{% endif %}
+    <span class="active-user-count">Active users right now: <strong>{{ active_user_count }}</strong></span>
   </div>
 {% endif %}
 

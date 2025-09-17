@@ -1,0 +1,98 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Activity Overview</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'inventory/styles.css' %}">
+</head>
+<body>
+    {% include "includes/navbar.html" %}
+
+    <div class="dashboard-container form-v2 w-80">
+        <div class="card form-card">
+            <h1>User Activity Overview</h1>
+            <p class="subtitle">Quick snapshot of current user sessions and recent sign-ins.</p>
+            <div class="stats-grid">
+                <div class="stat">
+                    <h2>{{ active_user_total }}</h2>
+                    <p>Users currently online</p>
+                </div>
+                <div class="stat">
+                    <h2>{{ total_users }}</h2>
+                    <p>Total registered users</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="two-col gap-5p">
+            <div class="col col-1">
+                <div class="card table-card">
+                    <h2>Active Sessions</h2>
+                    <p class="subtitle">Sessions expire automatically based on your session settings.</p>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Last Login</th>
+                                    <th>Session Expires</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in active_entries %}
+                                <tr>
+                                    <td>{{ entry.user.get_full_name|default:entry.user.username }}</td>
+                                    <td>{{ entry.role_label }}</td>
+                                    <td>{{ entry.last_login|date:"Y-m-d H:i"|default:"—" }}</td>
+                                    <td>{{ entry.session_expiry|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4">No users are currently signed in.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col col-2">
+                <div class="card table-card">
+                    <h2>Recent Sign-ins</h2>
+                    <p class="subtitle">Last login timestamp for every user.</p>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Last Login</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in all_users %}
+                                <tr>
+                                    <td>{{ row.user.get_full_name|default:row.user.username }}</td>
+                                    <td>{{ row.user.email|default:"—" }}</td>
+                                    <td>{{ row.role_label }}</td>
+                                    <td>{{ row.user.last_login|date:"Y-m-d H:i"|default:"Never" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4">No users found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
