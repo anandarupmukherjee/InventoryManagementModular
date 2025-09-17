@@ -23,10 +23,22 @@
 
 services:
   web:
-    build: .
-    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py runserver 0.0.0.0:8000"
+    build:
+      context: .
+      args:
+        GIT_REPO: ${GIT_REPO:-https://github.com/anandarupmukherjee/InventoryManagementModular.git}
+        GIT_REF: ${GIT_REF:-main}
+    command: |
+      bash -c "
+        set -e
+        python manage.py migrate
+        mkdir -p staticfiles
+        printf '%s\n' '{"paths": {}, "version": "1.0"}' > staticfiles/staticfiles.json
+        python manage.py collectstatic --noinput --verbosity 2
+        python manage.py runserver 0.0.0.0:8000
+      "
     volumes:
-      - .:/code
+      - static_volume:/code/stock_control/staticfiles
     expose:
       - "8000"               # Use 'expose' instead of 'ports' since only nginx needs to access it
     restart: unless-stopped
@@ -41,6 +53,7 @@ services:
       - "80:80"               # This maps port 80 of host to container
     volumes:
       - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/code/stock_control/staticfiles:ro
     depends_on:
       - web
     networks:
@@ -48,3 +61,6 @@ services:
 
 networks:
   backend:
+
+volumes:
+  static_volume:
