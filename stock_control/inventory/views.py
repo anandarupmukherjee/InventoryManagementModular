@@ -385,6 +385,7 @@ def help_center(request):
             'action_defs': [
                 ('Stock Admin Tools', 'data_collection_1:stock_admin', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
                 ('Register New Stock', 'data_collection_3:register-stock', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
+                ('Register Product Codes', 'data_collection_4:register-product-codes', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
                 ('Lot QA Review', 'inventory:lot_quality_review', [ROLE_KEY_ADMIN, ROLE_KEY_STAFF]),
             ],
             'roles': [ROLE_KEY_ADMIN, ROLE_KEY_STAFF],

@@ -42,6 +42,9 @@
           {% if user|has_any_role:"Admin,Staff" %}
             <a href="{% url 'inventory:record_purchase_order' %}">Record PO</a>
             <a href="{% url 'data_collection_3:register-stock' %}">Register Stock</a>
+            {% if flags|is_enabled:"enable_data_collection_4" %}
+              <a href="{% url 'data_collection_4:register-product-codes' %}">Register Product Codes</a>
+            {% endif %}
             <a href="{% url 'inventory:track_purchase_orders' %}">Track PO</a>
             <a href="{% url 'inventory:lot_quality_review' %}">Lot QA Review</a>
           {% endif %}

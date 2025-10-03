@@ -39,6 +39,9 @@ services:
       "
     volumes:
       - static_volume:/code/stock_control/staticfiles
+      - type: bind
+        source: ./services/data_storage/db.sqlite3
+        target: /code/stock_control/services/data_storage/db.sqlite3
     expose:
       - "8000"               # Use 'expose' instead of 'ports' since only nginx needs to access it
     restart: unless-stopped

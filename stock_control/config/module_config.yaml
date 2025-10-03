@@ -6,3 +6,4 @@ enabled_modules:
   - enable_data_collection
   - enable_data_collection_2
   - enable_data_collection_3
+  - enable_data_collection_4

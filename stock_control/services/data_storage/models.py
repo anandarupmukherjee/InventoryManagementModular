@@ -48,6 +48,30 @@ class Product(models.Model):
         return sum(item.accumulated_partial for item in self.items.all())
 
 
+class ProductCodeMapping(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="code_mappings",
+    )
+    new_product_code = models.CharField(max_length=50, blank=True)
+    old_product_code = models.CharField(max_length=50, blank=True)
+    barcode = models.CharField(max_length=128, blank=True)
+    notes = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-created_at"]
+
+    def __str__(self):
+        identifier = self.new_product_code or self.old_product_code or self.barcode or "Unmapped"
+        product_label = self.product.name if self.product else "No Product"
+        return f"{identifier} → {product_label}"
+
+
 class ProductItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="items")
     lot_number = models.CharField(max_length=50, default="LOT000")

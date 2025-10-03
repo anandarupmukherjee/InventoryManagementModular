@@ -22,6 +22,10 @@ if "enable_data_collection_2" in enabled:
 if "enable_data_collection_3" in enabled:
     urlpatterns.append(path("", include("services.data_collection_3.urls", namespace="data_collection_3")))
 
+# Data Collection v4 (product code registration)
+if "enable_data_collection_4" in enabled:
+    urlpatterns.append(path("", include("services.data_collection_4.urls", namespace="data_collection_4")))
+
 # Analysis module
 if "enable_analysis" in enabled:
     from services.analysis import urls as analysis_urls
