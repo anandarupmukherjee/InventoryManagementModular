@@ -146,3 +146,64 @@ erDiagram
   PURCHASEORDER ||--o{ PURCHASEORDERCOMPLETIONLOG : completed_into
   PRODUCTITEM ||--o{ LOTACCEPTANCETEST : tested_by
 ```
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Admin as Admin/User
+  participant Scanner as Scanner
+  participant UI as Web UI
+  participant API as Django API
+  participant DB as Database
+
+  Note over Admin,DB: PRODUCT & LOT CREATION
+  Admin->>UI: Create/Update Product
+  UI->>API: POST /product
+  API->>DB: Upsert Product
+  Admin->>UI: Create ProductItem (lot)
+  UI->>API: POST /product-item
+  API->>DB: Insert ProductItem
+  API->>DB: Set default Location if missing
+
+  Note over Admin,DB: LOT ACCEPTANCE TEST
+  Admin->>UI: Record LotAcceptanceTest
+  UI->>API: POST /acceptance-test
+  API->>DB: Insert LotAcceptanceTest
+
+  Note over Admin,DB: STOCK REGISTRATION (INBOUND)
+  Admin->>Scanner: Scan barcode (optional)
+  Scanner-->>UI: Send barcode
+  UI->>API: POST /stock/register
+  API->>DB: Resolve ProductItem and Product
+  API->>DB: Insert StockRegistrationLog
+  API->>DB: Increment ProductItem.current_stock
+  API-->>UI: OK with new stock
+
+  Note over Admin,DB: WITHDRAWAL (OUTBOUND)
+  Admin->>Scanner: Scan barcode or select lot
+  Scanner-->>UI: Send barcode
+  UI->>API: POST /withdraw
+  API->>DB: Resolve ProductItem and Product
+  API->>DB: Insert Withdrawal
+  alt unit or volume
+    API->>DB: Decrement current_stock
+  else partial
+    API->>DB: Keep current_stock
+    API->>DB: Store parts_withdrawn
+  end
+  API-->>UI: OK with new stock or confirmation
+
+  Note over Admin,DB: PURCHASE ORDER CREATE
+  Admin->>UI: Create PO
+  UI->>API: POST /po
+  API->>DB: Insert PurchaseOrder
+  API-->>UI: PO created
+
+  Note over Admin,DB: PURCHASE ORDER COMPLETE
+  Admin->>UI: Complete PO
+  UI->>API: POST /po/{id}/complete
+  API->>DB: Insert PurchaseOrderCompletionLog
+  API->>DB: Increment ProductItem.current_stock
+  API-->>UI: OK with new stock
+
+```
