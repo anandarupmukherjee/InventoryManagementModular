@@ -67,7 +67,20 @@ def register_product_codes(request):
             else:
                 messages.success(request, f"Mapping {action} successfully.")
             return redirect("data_collection_4:register-product-codes")
-        edit_instance = instance
+        else:
+            barcode_value = (form.data.get("barcode") or "").strip()
+            existing = None
+            if barcode_value:
+                existing = ProductCodeMapping.objects.filter(barcode__iexact=barcode_value).first()
+            if existing:
+                messages.info(
+                    request,
+                    "Mapping for this barcode already exists. Loaded it for editing instead.",
+                )
+                edit_instance = existing
+                form = ProductCodeMappingForm(instance=existing)
+            else:
+                edit_instance = instance
     else:
         edit_id = request.GET.get("edit")
         if edit_id:

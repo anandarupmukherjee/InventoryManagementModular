@@ -1,5 +1,6 @@
 from django import forms
 from services.data_storage.models import Product, ProductCodeMapping
+from services.data_collection.data_collection import parse_barcode_data
 
 
 class ProductCodeMappingForm(forms.ModelForm):
@@ -47,6 +48,8 @@ class ProductCodeMappingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["product"].queryset = Product.objects.order_by("name")
         self.fields["product"].required = False
+        self.fields["new_product_code"].required = False
+        self.fields["old_product_code"].required = False
 
         # Ensure initial workflow reflects the current instance state when editing.
         if self.is_bound:
@@ -85,6 +88,13 @@ class ProductCodeMappingForm(forms.ModelForm):
             "new_product_threshold": "Reorder Threshold",
             "new_product_lead_time_days": "Lead Time (days)",
         }
+
+    @staticmethod
+    def _normalize_product_code(raw: str) -> str:
+        code = (raw or "").strip()
+        if not code:
+            return ""
+        return code.lstrip("0") or "0" if code.isdigit() else code
 
     def clean_new_product_code(self):
         value = (self.cleaned_data.get("new_product_code") or "").strip()
@@ -144,16 +154,26 @@ class ProductCodeMappingForm(forms.ModelForm):
             supplier = cleaned_data.get("new_product_supplier")
             threshold = cleaned_data.get("new_product_threshold")
             lead_time_days = cleaned_data.get("new_product_lead_time_days")
+            if not barcode:
+                self.add_error("barcode", "Scan or enter a barcode to extract the product code.")
             if not name:
                 self.add_error("new_product_name", "Enter the product name.")
-            if not new_code:
-                self.add_error("new_product_code", "Enter the new product code.")
             if not supplier:
                 self.add_error("new_product_supplier", "Select the supplier.")
             if threshold is None:
                 cleaned_data["new_product_threshold"] = 0
             if lead_time_days is None:
                 cleaned_data["new_product_lead_time_days"] = 1
+
+            if barcode:
+                parsed = parse_barcode_data(barcode)
+                extracted_code = ""
+                if parsed:
+                    extracted_code = parsed.get("product_code") or ""
+                if not extracted_code:
+                    extracted_code = barcode
+                cleaned_data["new_product_code"] = self._normalize_product_code(extracted_code.upper())
+                new_code = cleaned_data["new_product_code"]
 
             # Avoid clobbering an existing product
             if new_code:

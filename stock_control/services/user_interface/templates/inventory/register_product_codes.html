@@ -49,25 +49,27 @@
                 </div>
 
                 <div class="form-grid">
-                    <div class="form-group" data-mode-section="existing">
-                        {{ form.product.label_tag }}
-                        {{ form.product }}
-                        {% for error in form.product.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+                    <div class="form-group">
+                        {{ form.barcode.label_tag }}
+                        {{ form.barcode }}
+                        {% for error in form.barcode.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+                        <p class="field-note">Scan first—product code auto-fills from GS1, 3PR, or raw barcode data.</p>
                     </div>
                     <div class="form-group">
                         {{ form.new_product_code.label_tag }}
                         {{ form.new_product_code }}
                         {% for error in form.new_product_code.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+                        <p class="field-note">Auto-populated from the barcode. Adjust only if needed.</p>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" data-mode-section="existing">
+                        {{ form.product.label_tag }}
+                        {{ form.product }}
+                        {% for error in form.product.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+                    </div>
+                    <div class="form-group" data-mode-section="existing">
                         {{ form.old_product_code.label_tag }}
                         {{ form.old_product_code }}
                         {% for error in form.old_product_code.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
-                    </div>
-                    <div class="form-group">
-                        {{ form.barcode.label_tag }}
-                        {{ form.barcode }}
-                        {% for error in form.barcode.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
                     </div>
                     <div class="form-group">
                         {{ form.notes.label_tag }}
