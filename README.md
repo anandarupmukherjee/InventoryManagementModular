@@ -207,3 +207,56 @@ sequenceDiagram
   API-->>UI: OK with new stock
 
 ```
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Dev as Developer
+  participant GH as GitHub
+  participant FS as Local Repo
+  participant SH as start.sh
+  participant DC as docker compose
+  participant DD as Docker Daemon
+  participant DB as Postgres/SQLite
+  participant DJ as Django App
+  participant NG as Nginx Proxy
+  participant UI as React UI
+  participant MIG as Django Migrate
+  participant ST as Collectstatic
+  participant BR as Browser
+
+  Dev->>GH: git clone or pull
+  GH-->>FS: repo updated
+  Dev->>FS: copy .env.example to .env
+
+  Dev->>SH: run start.sh
+  SH->>DC: compose build
+  DC->>DD: build images
+  DD-->>DC: images built
+  SH->>DC: compose up -d
+  DC->>DD: start containers
+
+  DD-->>DB: start database
+  DD-->>DJ: start backend
+  DD-->>UI: start frontend
+  DD-->>NG: start proxy
+
+  DJ->>DB: health check
+  DJ->>MIG: run migrations
+  MIG->>DB: apply schema
+  DJ->>ST: collect static
+  ST-->>DJ: static ready
+
+  DJ-->>DC: healthy
+  UI-->>DC: healthy
+  NG-->>DC: healthy
+
+  Dev->>BR: open http://localhost
+  BR->>NG: request app
+  NG->>UI: serve frontend
+  UI->>DJ: API requests
+  DJ->>DB: queries
+  DB-->>DJ: data
+  DJ-->>UI: JSON
+  UI-->>BR: dashboard loaded
+
+```
